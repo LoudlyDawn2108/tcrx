@@ -1,0 +1,5 @@
+/* Main app styles - using Tailwind for most styling */
+.App {
+  width: 100%;
+  min-height: 100vh;
+}
