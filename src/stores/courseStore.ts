@@ -28,7 +28,7 @@ export const useCourseStore = create<CourseState>((set, get) => ({
     try {
       const courses = await apiService.getAvailableCourses(registrationPeriodId);
       set({ 
-        courses: courses.map(course => ({ ...course, isSelected: false })),
+        courses: [courses].map(course => ({ ...course, isSelected: false })),
         isLoading: false 
       });
     } catch (error) {

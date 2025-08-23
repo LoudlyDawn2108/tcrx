@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, { AxiosError } from 'axios';
 import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { 
@@ -38,77 +39,216 @@ export interface User {
   }>;
 }
 
-export interface Course {
-  id: number;
-  subjectName: string;
-  subjectCode: string;
-  numberOfCredit: number;
-  isSelected: boolean;
-  status?: 'available' | 'registered' | 'full';
-  // Additional fields from the real API response
-  subjectType?: number;
-  departmentSubjectId?: number;
-  displayName?: string;
-  note?: string;
-  numberReality?: number;
-  subject?: {
-    id: number;
-    subjectCode: string;
-    subjectName: string;
-    numberOfCredit: number;
-    subjectType: number;
-    departmentSubjectId: number;
-    displayName?: string;
-    note?: string;
-    numberReality?: number;
-  };
-  canRegister?: boolean;
-  semester?: object;
-  enrollmentClasses?: Array<{
-    id?: number;
-    classCode?: string;
-    teacher?: string;
-    [key: string]: unknown;
-  }>;
-  // Fields that may indicate enrollment status
-  isEnrolled?: boolean;
-  enrollmentInfo?: {
-    classCode?: string;
-    teacher?: string;
-    enrollmentId?: number;
-  };
+// Interface for the API response from /api/semester/{semesterId}/subjects
+export interface Courses {
+  createDate: null | string;
+  createdBy: null | string;
+  modifyDate: null | string;
+  modifiedBy: null | string;
+  id: null | number;
+  voided: boolean;
+  studentId: number;
+  semesterId: null | number;
+  periodId: number;
+  classId: null | number;
+  student: null | any; // Replace 'any' with a specific type if you know the structure
+  courseRegisterViewObject: CourseRegisterViewObject;
+  studentSubjectMarks: null | any; // Replace 'any' with a specific type if you know the structure
+  listEduProgram: null | any[]; // Replace 'any' with a specific type if you know the structure
+  listStudentCourseSubject: null | any[];
 }
 
-// Interface for the API response from /api/semester/{semesterId}/subjects
-export interface CourseApiResponse {
-  id: number;
+export interface CourseRegisterViewObject {
+  isAllowUnRegister: boolean;
+  startDate: number;
+  endDate: number;
+  startDateString: string;
+  endDateString: string;
+  startUnDate: null | number;
+  endUnDate: null | number;
+  startUnDateString: null | string;
+  endUnDateString: null | string;
+  listSubjectRegistrationDtos: SubjectRegistrationDto[];
+  isDuplicated: null | boolean;
+  listOldCs: CourseSubjectDto[];
+  allowRegister: boolean;
+}
+
+export interface SubjectRegistrationDto {
   subjectName: string;
-  subjectCode: string;
+  registerPeriodId: number;
+  hasParaSubject: boolean;
+  isForcedRegType: boolean;
+  paraSubjects: null | any;
+  dependSubjectNames: null | string[];
+  courseSubjectDtos: CourseSubjectDto[];
+  isAllowSubjectUnRegister: boolean;
+  hasSubjectReg: null | boolean;
+  isUpgradeMark: null | boolean;
+  id: number;
+}
+
+export interface CourseSubjectDto {
+  createDate: null | string;
+  createdBy: null | string;
+  modifyDate: null | string;
+  modifiedBy: null | string;
+  id: number;
+  voided: boolean;
+  code: string;
+  shortCode: string;
+  subjectId: number;
+  subjectName: null | string;
+  subjectCode: null | string;
+  parent: null | any;
+  subCourseSubjects: null | CourseSubjectDto[];
+  isUsingConfig: boolean;
+  isFullClass: boolean;
+  courseSubjectConfigs: null | any;
+  timetables: Timetable[];
+  semesterSubject: null | any;
+  maxStudent: number;
+  minStudent: number;
+  numberStudent: number;
+  courseSubjectType: null | any;
+  learningSkillId: null | number;
+  learningSkillName: null | string;
+  learningSkillCode: null | string;
+  isSelected: boolean;
+  children: null | any;
+  hashCourseSubjects: any;
+  expanded: boolean;
+  isGrantAll: boolean;
+  isDeniedAll: boolean;
+  trainingBase: null | any;
+  isOvelapTime: boolean | null;
+  overLapClasses: string[];
+  courseYearId: null | number;
+  courseYearCode: null | string;
+  courseYearName: null | string;
+  displayName: string;
   numberOfCredit: number;
-  subjectType: number;
-  departmentSubjectId: number;
-  displayName?: string;
-  note?: string;
-  numberReality?: number;
-  subject?: {
-    id: number;
-    subjectCode: string;
-    subjectName: string;
-    numberOfCredit: number;
-    subjectType: number;
-    departmentSubjectId: number;
-    displayName?: string;
-    note?: string;
-    numberReality?: number;
-  };
-  canRegister?: boolean;
-  semester?: object;
-  enrollmentClasses?: Array<{
-    id?: number;
-    classCode?: string;
-    teacher?: string;
-    [key: string]: unknown;
-  }>;
+  isFeeByCourseSubject: null | boolean;
+  feePerCredit: null | number;
+  tuitionCoefficient: null | number;
+  totalFee: null | number;
+  feePerStudent: null | number;
+  enrollmentClassId: null | number;
+  enrollmentClassCode: null | string;
+  numberHours: null | number;
+  teacher: null | any;
+  teacherName: null | string;
+  teacherCode: null | string;
+  startDate: null | number;
+  endDate: null | number;
+  learningMethod: null | any;
+  status: number;
+  subjectExams: null | any;
+  semesterId: null | number;
+  semesterCode: null | string;
+  periodId: null | number;
+  periodName: null | string;
+  username: null | string;
+  actionTime: null | string;
+  logContent: null | string;
+  numberSubCourseSubject: number;
+  numberLearningSkill: number;
+  check: boolean;
+}
+
+export interface Timetable {
+  id: number;
+  endHour: Hour | null;
+  startHour: Hour | null;
+  teacher: Teacher | null;
+  assistantTeacher: null | Teacher;
+  room: Room | null;
+  weekIndex: number;
+  fromWeek: number;
+  toWeek: number;
+  start: string;
+  end: string;
+  teacherName: string | null;
+  roomName: string | null;
+  roomCode: null | string;
+  staffCode: null | string;
+  assistantStaffCode: null | string;
+  courseHourseStartCode: number;
+  courseHourseEndCode: number;
+  numberHours: null | number;
+  startDate: number;
+  endDate: number;
+  subjectName: null | string;
+  courseSubjectCode: null | string;
+  courseSubjectId: number | null;
+}
+
+export interface Hour {
+  id: number;
+  name: string;
+  start: number | null;
+  startString: string | null;
+  end: number | null;
+  endString: string | null;
+  indexNumber: number;
+  type: null | any;
+}
+
+export interface Teacher {
+  createDate: null | string;
+  createdBy: null | string;
+  modifyDate: null | string;
+  modifiedBy: null | string;
+  id: number;
+  firstName: null | string;
+  lastName: null | string;
+  displayName: string;
+  shortName: null | string;
+  birthDate: null | string;
+  birthDateString: null | string;
+  birthPlace: null | string;
+  gender: null | number;
+  startDate: null | string;
+  endDate: null | string;
+  phoneNumber: null | string;
+  idNumber: null | string;
+  idNumberIssueBy: null | string;
+  idNumberIssueDate: null | string;
+  idNumberIssueDateString: null | string;
+  email: null | string;
+  nationality: null | string;
+  nativeVillage: null | string;
+  ethnics: null | string;
+  religion: null | string;
+  photo: null | string;
+  photoCropped: null | string;
+  address: any[];
+  userId: null | number;
+  communistYouthUnionJoinDate: null | string;
+  communistYouthUnionJoinDateString: null | string;
+  communistPartyJoinDate: null | string;
+  communistPartyJoinDateString: null | string;
+  carrer: null | string;
+  createIp: null | string;
+  modifyIp: null | string;
+  staffCode: string;
+  positions: any[];
+  agreements: any[];
+  user: null | any;
+  currentCell: null | any;
+}
+
+// Interface for room details
+export interface Room {
+  id: number;
+  name: string;
+  code: string;
+  capacity: null | number;
+  examCapacity: null | number;
+  building: null | any;
+  dupName: null | string;
+  dupCode: null | string;
+  duplicate: boolean;
 }
 
 export interface RegistrationResponse {
@@ -390,7 +530,7 @@ class ApiService {
   }
 
   // Course management methods
-  async getAvailableCourses(registrationPeriodId: number): Promise<Course[]> {
+  async getAvailableCourses(registrationPeriodId: number): Promise<Courses> {
     if (USE_MOCK_DATA) {
       // Simulate some network delay
       return await mockApiCall(mockCourses);
@@ -400,50 +540,12 @@ class ApiService {
       console.log(`Fetching courses for registration period ID: ${registrationPeriodId}`);
       const user = await this.getCurrentUser();
       const personId = user.person.id;
-      const response = await this.axiosInstance.get(`/api/cs_reg_mongo/findByPeriod/${personId}/${registrationPeriodId}`);
+      const response = await this.axiosInstance.get<Courses>(`/api/cs_reg_mongo/findByPeriod/${personId}/${registrationPeriodId}`);
 
-      console.log(`Received ${response.data} courses from API`);
+      console.log(`Received ${JSON.stringify(response.data, null, 2).length} courses from API`);
       
       // Transform the API response to match our Course interface
-      const courses: Course[] = response.data.map((item: CourseApiResponse) => {
-        // Determine status based on API response
-        let status: 'available' | 'registered' | 'full' = 'available';
-        
-        // Check if already enrolled (you may need to adjust this logic based on actual API response)
-        const isEnrolled = item.enrollmentClasses && Array.isArray(item.enrollmentClasses) && item.enrollmentClasses.length > 0;
-        if (isEnrolled) {
-          status = 'registered';
-        } else if (item.canRegister === false) {
-          status = 'full';
-        }
-        
-        return {
-          id: item.id,
-          subjectName: item.subjectName,
-          subjectCode: item.subjectCode,
-          numberOfCredit: item.numberOfCredit,
-          isSelected: false, // Default value, will be updated by store
-          status,
-          // Include additional fields from API
-          subjectType: item.subjectType,
-          departmentSubjectId: item.departmentSubjectId,
-          displayName: item.displayName,
-          note: item.note,
-          numberReality: item.numberReality,
-          subject: item.subject,
-          canRegister: item.canRegister,
-          semester: item.semester,
-          enrollmentClasses: item.enrollmentClasses,
-          isEnrolled,
-          enrollmentInfo: isEnrolled && item.enrollmentClasses?.[0] ? {
-            classCode: item.enrollmentClasses[0].classCode,
-            teacher: item.enrollmentClasses[0].teacher,
-            enrollmentId: item.enrollmentClasses[0].id,
-          } : undefined
-        };
-      });
-      
-      console.log(`Transformed courses: ${courses.length} courses ready for display`);
+      const courses: Courses = response.data;
       return courses;
     } catch (error) {
       console.error('Error fetching courses:', error);
