@@ -88,6 +88,7 @@ export interface SubjectRegistrationDto {
   id: number;
 }
 
+// Dto for registering a course
 export interface CourseSubjectDto {
   createDate: null | string;
   createdBy: null | string;
@@ -101,7 +102,7 @@ export interface CourseSubjectDto {
   subjectName: null | string;
   subjectCode: null | string;
   parent: null | any;
-  subCourseSubjects: null | CourseSubjectDto[];
+  subCourseSubjects: null | CourseSubjectDto[]; // if this is not null use this for registering a course
   isUsingConfig: boolean;
   isFullClass: boolean;
   courseSubjectConfigs: null | any;
@@ -153,7 +154,7 @@ export interface CourseSubjectDto {
   logContent: null | string;
   numberSubCourseSubject: number;
   numberLearningSkill: number;
-  check: boolean;
+  check: boolean; // Indicates if the course is registered/enrolled on the server or not
 }
 
 export interface Timetable {

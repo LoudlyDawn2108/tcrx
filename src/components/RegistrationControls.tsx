@@ -7,7 +7,7 @@ interface RegistrationControlsProps {
 }
 
 const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId }) => {
-  const { courses, selectedCourses, clearSelection } = useCourseStore();
+  const { selectedCourses, clearSelection, getAvailableCourseSubjects } = useCourseStore();
   const { 
     queue,
     isRegistrationOpen,
@@ -25,7 +25,8 @@ const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId 
     return () => clearInterval(interval);
   }, [checkRegistrationTime]);
 
-  const selectedCoursesData = courses.filter(course => selectedCourses.includes(course.id));
+  const availableCourses = getAvailableCourseSubjects();
+  const selectedCoursesData = availableCourses.filter(course => selectedCourses.includes(course.id));
   const hasSelection = selectedCourses.length > 0;
   const isProcessing = status !== 'idle';
 

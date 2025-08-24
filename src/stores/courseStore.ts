@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import type { Course } from '../services/api';
+import type { Courses, CourseSubjectDto } from '../services/api';
 import apiService from '../services/api';
 
 interface CourseState {
-  courses: Course[];
+  coursesData: Courses | null;
   selectedCourses: number[];
   isLoading: boolean;
   error: string | null;
@@ -14,10 +14,13 @@ interface CourseState {
   selectAllCourses: () => void;
   clearSelection: () => void;
   clearError: () => void;
+  
+  // Helper getters
+  getAvailableCourseSubjects: () => CourseSubjectDto[];
 }
 
 export const useCourseStore = create<CourseState>((set, get) => ({
-  courses: [],
+  coursesData: null,
   selectedCourses: [],
   isLoading: false,
   error: null,
@@ -26,9 +29,9 @@ export const useCourseStore = create<CourseState>((set, get) => ({
     set({ isLoading: true, error: null });
     
     try {
-      const courses = await apiService.getAvailableCourses(registrationPeriodId);
+      const coursesData = await apiService.getAvailableCourses(registrationPeriodId);
       set({ 
-        courses: [courses].map(course => ({ ...course, isSelected: false })),
+        coursesData,
         isLoading: false 
       });
     } catch (error) {
@@ -38,6 +41,27 @@ export const useCourseStore = create<CourseState>((set, get) => ({
         isLoading: false 
       });
     }
+  },
+
+  getAvailableCourseSubjects: () => {
+    const { coursesData } = get();
+    if (!coursesData?.courseRegisterViewObject?.listSubjectRegistrationDtos) {
+      return [];
+    }
+    
+    const allCourseSubjects: CourseSubjectDto[] = [];
+    coursesData.courseRegisterViewObject.listSubjectRegistrationDtos.forEach(subject => {
+      subject.courseSubjectDtos.forEach(courseSubject => {
+        // If it has sub-courses, use those instead
+        if (courseSubject.subCourseSubjects && courseSubject.subCourseSubjects.length > 0) {
+          allCourseSubjects.push(...courseSubject.subCourseSubjects);
+        } else {
+          allCourseSubjects.push(courseSubject);
+        }
+      });
+    });
+    
+    return allCourseSubjects;
   },
 
   toggleCourseSelection: (courseId: number) => {
@@ -56,9 +80,10 @@ export const useCourseStore = create<CourseState>((set, get) => ({
   },
 
   selectAllCourses: () => {
-    const { courses } = get();
-    const availableCourseIds = courses
-      .filter(course => course.status !== 'registered' && course.status !== 'full')
+    const { getAvailableCourseSubjects } = get();
+    const availableCourses = getAvailableCourseSubjects();
+    const availableCourseIds = availableCourses
+      .filter(course => !course.isFullClass && !course.check) // Exclude full classes and already registered courses
       .map(course => course.id);
     
     set({ selectedCourses: availableCourseIds });

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Course, RegistrationResponse } from '../services/api';
+import type { CourseSubjectDto, RegistrationResponse } from '../services/api';
 import apiService from '../services/api';
 import { useLogStore } from './logStore';
 
@@ -26,10 +26,10 @@ interface RegistrationState {
   timeUntilStart: number; // milliseconds
   
   // Actions
-  addToQueue: (courses: Course[], semesterId: number) => void;
+  addToQueue: (courses: CourseSubjectDto[], semesterId: number) => void;
   removeFromQueue: (courseId: number) => void;
   clearQueue: () => void;
-  startRegistrationProcess: (courses?: Course[], semesterId?: number) => Promise<void>;
+  startRegistrationProcess: (courses?: CourseSubjectDto[], semesterId?: number) => Promise<void>;
   checkRegistrationTime: () => void;
   setSemester: (semesterId: number) => void;
   
@@ -48,15 +48,29 @@ export const useRegistrationStore = create<RegistrationState>()(
 
       addToQueue: (courses, semesterId) => {
         const { queue } = get();
+        // Filter out courses that are already registered (check = true)
         const newQueuedCourses = courses
-          .filter(course => !queue.some(q => q.courseId === course.id))
+          .filter(course => !course.check && !queue.some(q => q.courseId === course.id))
           .map(course => ({
             courseId: course.id,
-            courseName: course.subjectName,
-            courseCode: course.subjectCode,
+            courseName: course.displayName || course.subjectName || 'Unknown Course',
+            courseCode: course.code || course.subjectCode || 'Unknown Code',
             semesterId,
             addedAt: new Date(),
           }));
+
+        if (newQueuedCourses.length === 0) {
+          // If no courses to add (all already registered or queued), show a message
+          const logStore = useLogStore.getState();
+          logStore.addLogEntry({
+            courseId: 0,
+            courseName: 'Queue Update',
+            courseCode: 'INFO',
+            status: 'failed', // Using 'failed' status to indicate issue
+            message: 'No new courses added to queue - all selected courses are already registered or queued.',
+          });
+          return;
+        }
 
         set({ queue: [...queue, ...newQueuedCourses] });
 
@@ -95,8 +109,8 @@ export const useRegistrationStore = create<RegistrationState>()(
         // Process courses sequentially to avoid overwhelming the server
         for (const course of coursesToProcess) {
           const courseId = 'courseId' in course ? course.courseId : course.id;
-          const courseName = 'courseName' in course ? course.courseName : course.subjectName;
-          const courseCode = 'courseCode' in course ? course.courseCode : course.subjectCode;
+          const courseName = 'courseName' in course ? course.courseName : (course.displayName || course.subjectName || 'Unknown Course');
+          const courseCode = 'courseCode' in course ? course.courseCode : (course.code || course.subjectCode || 'Unknown Code');
 
           await state.processRegistrationRequest(courseId, courseName, courseCode, semester);
           
