@@ -115,7 +115,7 @@ export interface CourseSubjectDto {
   learningSkillId: null | number;
   learningSkillName: null | string;
   learningSkillCode: null | string;
-  isSelected: boolean;
+  isSelected: boolean;  // Indicates if the course is registered/enrolled on the server or not
   children: null | any;
   hashCourseSubjects: any;
   expanded: boolean;
@@ -154,7 +154,7 @@ export interface CourseSubjectDto {
   logContent: null | string;
   numberSubCourseSubject: number;
   numberLearningSkill: number;
-  check: boolean; // Indicates if the course is registered/enrolled on the server or not
+  check: boolean;
 }
 
 export interface Timetable {

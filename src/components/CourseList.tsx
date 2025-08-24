@@ -79,7 +79,7 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
 
   const isEnrolled = (courseId: number) => {
     const course = moduleClasses.find(c => c.id === courseId);
-    return course?.check === true; // Use the check flag to determine if registered
+    return course?.isSelected === true; // Use the check flag to determine if registered
   };
 
   const isCourseFull = (course: CourseSubjectDto) => {
@@ -105,7 +105,7 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
   const getRegisteredCount = (subjectId: number): number => {
     const classes = getModuleClasses(subjectId);
     // Only count component layers and regular courses, not main classes
-    return classes.filter(course => !course.isMainClass && course.check).length;
+    return classes.filter(course => !course.isMainClass && course.isSelected).length;
   };
 
   const getTotalCount = (subjectId: number): number => {
