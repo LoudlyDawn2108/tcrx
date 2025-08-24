@@ -148,17 +148,39 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
   return (
     <div className="bg-white shadow rounded-lg">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-medium text-gray-900">Course Registration</h2>
-          <div className="flex items-center space-x-4">
+      <div className="px-4 lg:px-6 py-4 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+          <div className="flex items-center space-x-3">
+            <h2 className="text-lg font-medium text-gray-900">Course Registration</h2>
+            <button
+              onClick={() => fetchCourses(semesterId)}
+              disabled={isLoading}
+              className="inline-flex items-center p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Refresh course data"
+            >
+              <svg 
+                className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                />
+              </svg>
+            </button>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0">
             <span className="text-sm text-gray-500">
               {selectedCourses.length} course{selectedCourses.length !== 1 ? 's' : ''} selected
             </span>
             {selectedSubjectId && (
               <button
                 onClick={handleSelectAll}
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-500 text-left sm:text-center"
               >
                 {selectedCourses.filter(id => 
                   moduleClasses.some(course => course.id === id && !course.isMainClass)
@@ -171,14 +193,14 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
         </div>
       </div>
 
-      {/* Two-panel layout */}
-      <div className="flex" style={{ height: '500px' }}>
+      {/* Two-panel layout - responsive */}
+      <div className="flex flex-col lg:flex-row lg:min-h-[600px]">
         {/* Left Panel - Subjects */}
-        <div className="w-1/3 border-r border-gray-200">
+        <div className="w-full lg:w-1/3 border-b lg:border-b-0 lg:border-r border-gray-200">
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
             <h3 className="text-sm font-medium text-gray-900">Subject</h3>
           </div>
-          <div className="overflow-y-auto" style={{ height: 'calc(500px - 48px)' }}>
+          <div className="overflow-y-auto h-full lg:h-[calc(600px-48px)]">
             {subjects.length === 0 ? (
               <div className="px-4 py-8 text-center text-gray-500 text-sm">
                 No subjects found
@@ -209,11 +231,9 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
                           <p className={`text-sm truncate ${isSelected ? 'font-medium text-blue-900' : 'text-gray-900'}`}>
                             {subject.subjectName}
                           </p>
-                          {registeredCount > 0 && (
                             <p className="text-xs text-gray-500">
-                              {registeredCount}/{totalCount} registered
+                              {totalCount} classes
                             </p>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -229,14 +249,9 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium text-gray-900">Module Classes</h3>
-              {selectedSubjectId && (
-                <span className="text-xs text-gray-500">
-                  {moduleClasses.filter(c => !c.isMainClass && c.check).length}/{moduleClasses.filter(c => !c.isMainClass).length} registered
-                </span>
-              )}
             </div>
           </div>
-          <div className="overflow-y-auto" style={{ height: 'calc(500px - 48px)' }}>
+          <div className="overflow-y-auto h-full lg:h-[calc(600px-48px)]">
             {!selectedSubjectId ? (
               <div className="px-4 py-8 text-center text-gray-500 text-sm">
                 Select a subject to view module classes
@@ -258,30 +273,31 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
                   return (
                     <div key={course.id} className={`
                       ${isMainClass ? 'bg-gray-100' : enrolled ? 'bg-green-50' : ''}
-                      ${isComponentLayer ? 'ml-4 border-l-2 border-gray-300' : ''}
-                      px-4 py-3 hover:bg-gray-50
+                      ${isComponentLayer ? 'ml-2 lg:ml-4 border-l-2 border-gray-300' : ''}
+                      px-3 lg:px-4 py-3 hover:bg-gray-50
                     `}>
-                      <div className="flex items-start space-x-3">
-                        {/* Checkbox - only for component layers and regular courses */}
-                        {!isMainClass && (
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => isSelectable && toggleCourseSelection(course.id)}
-                            disabled={!isSelectable}
-                            className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
-                          />
-                        )}
-                        
-                        {/* Main class indicator */}
-                        {isMainClass && (
-                          <div className="mt-1 w-4 h-4 flex items-center justify-center">
-                            <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
-                          </div>
-                        )}
+                      <div className="flex flex-col sm:flex-row sm:items-start space-y-2 sm:space-y-0 sm:space-x-3">
+                        <div className="flex items-start space-x-3 flex-1">
+                          {/* Checkbox - only for component layers and regular courses */}
+                          {!isMainClass && (
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => isSelectable && toggleCourseSelection(course.id)}
+                              disabled={!isSelectable}
+                              className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50 shrink-0"
+                            />
+                          )}
+                          
+                          {/* Main class indicator */}
+                          {isMainClass && (
+                            <div className="mt-1 w-4 h-4 flex items-center justify-center shrink-0">
+                              <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
+                            </div>
+                          )}
                         
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-2 lg:space-y-0">
                             <div className="flex-1">
                               {/* Course title */}
                               <p className={`text-sm font-medium ${
@@ -301,23 +317,17 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
                                 )}
                               </p>
                               
-                              {/* Component layer header */}
-                              {isComponentLayer && (
-                                <p className="text-xs text-gray-600 italic mb-1">Component Layers:</p>
-                              )}
-                              
-                              {/* Course details - only for non-main classes or when main class has no sub-courses */}
-                              {(!isMainClass || !course.subCourseSubjects?.length) && (
+                              {/* Course details*/}
                                 <div className="mt-1 text-xs text-gray-500 space-y-1">
                                   {course.timetables && course.timetables.length > 0 && (
                                     <div className="space-y-1">
                                       {course.timetables.map((timetable, index) => (
-                                        <div key={index} className="grid grid-cols-4 gap-4 text-xs">
+                                        <div key={index} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4 text-xs">
                                           <span>
-                                            <strong>Week:</strong> {timetable.fromWeek} → ({timetable.startDate ? new Date(timetable.startDate).toLocaleDateString() : 'N/A'} {timetable.endDate ? new Date(timetable.endDate).toLocaleDateString() : 'N/A'} →)
+                                            <strong>Week:</strong> {timetable.fromWeek} → {timetable.toWeek} <br/> ({timetable.startDate ? new Date(timetable.startDate).toLocaleDateString() : 'N/A'} - {timetable.endDate ? new Date(timetable.endDate).toLocaleDateString() : 'N/A'})
                                           </span>
                                           <span>
-                                            <strong>Time:</strong> {timetable.startHour?.indexNumber || 'N/A'}th . Period {timetable.startHour?.indexNumber || 'N/A'} Period {timetable.endHour?.indexNumber || 'N/A'} →
+                                            <strong>Time:</strong> {timetable.start} → {timetable.end} <br/> {timetable.startHour?.startString} → {timetable.endHour?.endString}
                                           </span>
                                           <span>
                                             <strong>Room:</strong> {timetable.room?.code || 'TBA'}
@@ -329,16 +339,15 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
                                       ))}
                                     </div>
                                   )}
-                                  <div className="flex justify-between text-xs">
+                                  <div className="flex flex-col sm:flex-row sm:justify-between text-xs space-y-1 sm:space-y-0">
                                     <span>Students: {course.numberStudent}/{course.maxStudent}</span>
-                                    <span>Credits: {course.numberOfCredit}</span>
                                   </div>
                                 </div>
-                              )}
+
                             </div>
                             
                             {/* Status badges */}
-                            <div className="flex items-center space-x-2 ml-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 ml-0 sm:ml-4 mt-2 sm:mt-0">
                               {enrolled && !isMainClass && (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                   ✓ Registered
@@ -354,13 +363,9 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
                                   Available
                                 </span>
                               )}
-                              {isMainClass && (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                                  {course.numberStudent}/{course.maxStudent}
-                                </span>
-                              )}
                             </div>
                           </div>
+                        </div>
                         </div>
                       </div>
                     </div>
