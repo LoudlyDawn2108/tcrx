@@ -5,6 +5,7 @@ import apiService from '../services/api';
 interface CourseState {
   coursesData: Courses | null;
   selectedCourses: number[];
+  selectedSubjectId: number | null;
   isLoading: boolean;
   error: string | null;
   
@@ -14,14 +15,17 @@ interface CourseState {
   selectAllCourses: () => void;
   clearSelection: () => void;
   clearError: () => void;
+  setSelectedSubject: (subjectId: number | null) => void;
   
   // Helper getters
   getAvailableCourseSubjects: () => CourseSubjectDto[];
+  getModuleClassesForSubject: (subjectId: number) => CourseSubjectDto[];
 }
 
 export const useCourseStore = create<CourseState>((set, get) => ({
   coursesData: null,
   selectedCourses: [],
+  selectedSubjectId: null,
   isLoading: false,
   error: null,
 
@@ -64,6 +68,32 @@ export const useCourseStore = create<CourseState>((set, get) => ({
     return allCourseSubjects;
   },
 
+  getModuleClassesForSubject: (subjectId: number) => {
+    const { coursesData } = get();
+    if (!coursesData?.courseRegisterViewObject?.listSubjectRegistrationDtos) {
+      return [];
+    }
+    
+    const subject = coursesData.courseRegisterViewObject.listSubjectRegistrationDtos.find(s => s.id === subjectId);
+    if (!subject) return [];
+
+    const allCourseSubjects: CourseSubjectDto[] = [];
+    subject.courseSubjectDtos.forEach(courseSubject => {
+      // If it has sub-courses, use those instead
+      if (courseSubject.subCourseSubjects && courseSubject.subCourseSubjects.length > 0) {
+        allCourseSubjects.push(...courseSubject.subCourseSubjects);
+      } else {
+        allCourseSubjects.push(courseSubject);
+      }
+    });
+
+    return allCourseSubjects;
+  },
+
+  setSelectedSubject: (subjectId: number | null) => {
+    set({ selectedSubjectId: subjectId });
+  },
+
   toggleCourseSelection: (courseId: number) => {
     const { selectedCourses } = get();
     const isSelected = selectedCourses.includes(courseId);
@@ -80,13 +110,31 @@ export const useCourseStore = create<CourseState>((set, get) => ({
   },
 
   selectAllCourses: () => {
-    const { getAvailableCourseSubjects } = get();
-    const availableCourses = getAvailableCourseSubjects();
-    const availableCourseIds = availableCourses
-      .filter(course => !course.isFullClass && !course.check) // Exclude full classes and already registered courses
-      .map(course => course.id);
+    const { selectedSubjectId, coursesData } = get();
+    if (!selectedSubjectId || !coursesData?.courseRegisterViewObject?.listSubjectRegistrationDtos) return;
     
-    set({ selectedCourses: availableCourseIds });
+    const subject = coursesData.courseRegisterViewObject.listSubjectRegistrationDtos.find(s => s.id === selectedSubjectId);
+    if (!subject) return;
+
+    const selectableCourseIds: number[] = [];
+    
+    subject.courseSubjectDtos.forEach(courseSubject => {
+      // If it has sub-courses, only consider the sub-courses for selection
+      if (courseSubject.subCourseSubjects && courseSubject.subCourseSubjects.length > 0) {
+        courseSubject.subCourseSubjects.forEach(subCourse => {
+          if (!subCourse.isFullClass && !subCourse.check) {
+            selectableCourseIds.push(subCourse.id);
+          }
+        });
+      } else {
+        // Regular course without sub-courses
+        if (!courseSubject.isFullClass && !courseSubject.check) {
+          selectableCourseIds.push(courseSubject.id);
+        }
+      }
+    });
+    
+    set({ selectedCourses: selectableCourseIds });
   },
 
   clearSelection: () => {
