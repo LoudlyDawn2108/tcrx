@@ -1,3 +1,4 @@
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, { AxiosError } from 'axios';
 import type { AxiosInstance, AxiosRequestConfig } from 'axios';
@@ -326,6 +327,29 @@ const BASE_URL = 'https://sinhvien1.tlu.edu.vn/education';
 const USE_MOCK_DATA = false; // Set to false to use real API (course listing now integrated)
 
 class ApiService {
+  /**
+   * Đăng ký môn học bằng object đầy đủ (CourseSubjectDto)
+   * POST lên endpoint /education/api/cs_reg_mongo/add-register/{personId}/{registrationPeriodId} với body là object
+   */
+  async registerForCourseFullObject(courseObj: CourseSubjectDto, personId: number, registrationPeriodId: number): Promise<RegistrationResponse> {
+    try {
+      const url = `/education/api/cs_reg_mongo/add-register/${personId}/${registrationPeriodId}`;
+      console.log('[API] Đăng ký:', { url, payload: courseObj });
+      await this.axiosInstance.post(url, courseObj);
+      return {
+        success: true,
+        message: 'Successfully registered for course',
+        courseSubjectId: courseObj.id
+      };
+    } catch (error) {
+      const axiosError = error as AxiosError<{ message?: string }>;
+      return {
+        success: false,
+        message: axiosError.response?.data?.message || axiosError.message || 'Registration failed',
+        courseSubjectId: courseObj.id
+      };
+    }
+  }
   private axiosInstance: AxiosInstance;
   private retryCount = 5;
   private baseRetryDelay = 1000; // 1 second
