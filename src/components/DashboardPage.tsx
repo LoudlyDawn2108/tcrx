@@ -32,11 +32,12 @@ const DashboardPage: React.FC = () => {
   }, [currentSemester, selectedPeriodId]);
 
   // Fetch courses and enrolled courses when period is selected
+
+  // Luôn chạy interval checkRegistrationTime ở DashboardPage để auto đăng ký không bị miss
   useEffect(() => {
-    if (selectedPeriodId) {
-      checkRegistrationTime();
-    }
-  }, [selectedPeriodId, checkRegistrationTime]);
+    const interval = setInterval(checkRegistrationTime, 1000);
+    return () => clearInterval(interval);
+  }, [checkRegistrationTime]);
 
   const handlePeriodChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const periodId = parseInt(event.target.value);
@@ -175,7 +176,7 @@ const DashboardPage: React.FC = () => {
             {/* Right Column - Controls and Log */}
             <div className="space-y-6">
               {selectedPeriodId ? (
-                <RegistrationControls semesterId={selectedPeriodId} />
+                <RegistrationControls semesterId={selectedPeriodId} registrationPeriodId={selectedPeriodId} />
               ) : (
                 <div className="bg-white shadow rounded-lg p-6">
                   <div className="text-center text-gray-500">

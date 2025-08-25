@@ -1,12 +1,19 @@
 import React, { useEffect } from 'react';
 import { useCourseStore } from '../stores/courseStore';
 import { useRegistrationStore, REGISTRATION_START_TIME } from '../stores/registrationStore';
+import { useAuthStore } from '../stores/authStore';
 
 interface RegistrationControlsProps {
   semesterId: number;
 }
 
-const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId }) => {
+interface RegistrationControlsProps {
+  semesterId: number;
+  registrationPeriodId?: number;
+}
+
+const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId, registrationPeriodId }) => {
+  const { user } = useAuthStore();
   const { selectedCourses, clearSelection, getAvailableCourseSubjects } = useCourseStore();
   const { 
     queue,
@@ -43,9 +50,8 @@ const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId 
   };
 
   const handleRegisterNow = async () => {
-    if (!hasSelection) return;
-    
-    await startRegistrationProcess(selectedCoursesData, semesterId);
+    if (!hasSelection || !user || !registrationPeriodId) return;
+    await startRegistrationProcess(selectedCoursesData, semesterId, user.person.id, registrationPeriodId);
     clearSelection();
   };
 
@@ -155,8 +161,21 @@ const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId 
         <div className="mt-6 p-4 bg-gray-50 rounded-md">
           <h3 className="text-sm font-medium text-gray-900 mb-2">Registration Queue</h3>
           <div className="space-y-1">
+            <ul className="text-xs text-gray-700 mb-2">
+              {queue.map((item) => (
+                <li key={item.subjectId} className="mb-1">
+                  <span className="font-semibold">{item.courseName}</span>
+                  {item.subCourseId && (
+                    <>
+                      {" "}- Thực hành: <span className="font-semibold">{item.subCourseId}</span>
+                    </>
+                  )}
+                  <span className="text-gray-400"> (Mã: {item.courseCode})</span>
+                </li>
+              ))}
+            </ul>
             <p className="text-xs text-gray-600">
-              {queue.length} course{queue.length !== 1 ? 's' : ''} queued for automatic registration
+              {queue.length} subject{queue.length !== 1 ? 's' : ''} queued for automatic registration
             </p>
             <button
               onClick={clearQueue}

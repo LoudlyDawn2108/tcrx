@@ -22,6 +22,7 @@ interface CourseState {
   getAvailableCourseSubjects: () => CourseSubjectDto[];
   getModuleClassesForSubject: (subjectId: number) => CourseSubjectDto[];
   getSelectedCourseForSubject: (subjectId: number) => number | null;
+  getCourseObjectById: (courseId: number) => CourseSubjectDto | undefined;
 }
 
 export const useCourseStore = create<CourseState>((set, get) => ({
@@ -175,4 +176,20 @@ export const useCourseStore = create<CourseState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  // Helper: Lấy object lớp học phần đầy đủ từ coursesData theo id
+  getCourseObjectById: (courseId: number) => {
+    const { coursesData } = get();
+    if (!coursesData?.courseRegisterViewObject?.listSubjectRegistrationDtos) return undefined;
+    for (const subject of coursesData.courseRegisterViewObject.listSubjectRegistrationDtos) {
+      for (const courseSubject of subject.courseSubjectDtos) {
+        if (courseSubject.id === courseId) return courseSubject;
+        if (courseSubject.subCourseSubjects && courseSubject.subCourseSubjects.length > 0) {
+          const found = courseSubject.subCourseSubjects.find(sub => sub.id === courseId);
+          if (found) return found;
+        }
+      }
+    }
+    return undefined;
+  },
 }));
