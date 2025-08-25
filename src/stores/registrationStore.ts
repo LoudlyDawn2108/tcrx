@@ -5,8 +5,8 @@ import apiService from '../services/api';
 import { useLogStore } from './logStore';
 
 // Configuration - in a real app, this would come from the backend
-export const REGISTRATION_START_TIME = new Date('2025-08-25T08:00:00');
-export const REGISTRATION_END_TIME = new Date('2025-08-25T23:59:59');
+export const REGISTRATION_START_TIME = new Date('2025-08-26T08:00:00');
+export const REGISTRATION_END_TIME = new Date('2025-08-26T23:59:59');
 
 export type RegistrationStatus = 'idle' | 'processing_queue' | 'processing_manual';
 

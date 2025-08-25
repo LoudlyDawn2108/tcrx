@@ -39,8 +39,8 @@ export interface User {
   }>;
 }
 
-// Interface for the API response from /api/semester/{semesterId}/subjects
-export interface Courses {
+// Interface for the API response from /api/semester/{semesterId}/{personId}
+export interface SemesterPeriodData {
   createDate: null | string;
   createdBy: null | string;
   modifyDate: null | string;
@@ -531,7 +531,7 @@ class ApiService {
   }
 
   // Course management methods
-  async getAvailableCourses(registrationPeriodId: number, personId: number): Promise<Courses> {
+  async getAvailableCourses(registrationPeriodId: number, personId: number): Promise<SemesterPeriodData> {
     if (USE_MOCK_DATA) {
       // Simulate some network delay
       return await mockApiCall(mockCourses);
@@ -539,12 +539,12 @@ class ApiService {
 
     try {
       console.log(`Fetching courses for registration period ID: ${registrationPeriodId}`);
-      const response = await this.axiosInstance.get<Courses>(`/api/cs_reg_mongo/findByPeriod/${personId}/${registrationPeriodId}`);
+      const response = await this.axiosInstance.get<SemesterPeriodData>(`/api/cs_reg_mongo/findByPeriod/${personId}/${registrationPeriodId}`);
 
       console.log(`Received ${JSON.stringify(response.data, null, 2).length} courses from API`);
       
       // Transform the API response to match our Course interface
-      const courses: Courses = response.data;
+      const courses: SemesterPeriodData = response.data;
       return courses;
     } catch (error) {
       console.error('Error fetching courses:', error);

@@ -15,8 +15,6 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
     error, 
     fetchCourses,
     toggleCourseSelection,
-    selectAllCourses,
-    clearSelection,
     clearError,
     coursesData,
     setSelectedSubject
@@ -82,29 +80,8 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
     }
   }, [subjects, selectedSubjectId, setSelectedSubject]);
 
-  const isEnrolled = (courseId: number) => {
-    const course = moduleClasses.find(c => c.id === courseId);
-    return course?.isSelected === true; // Use the check flag to determine if registered
-  };
-
   const isCourseFull = (course: CourseSubjectDto) => {
     return course.isFullClass || course.numberStudent >= course.maxStudent;
-  };
-
-  const handleSelectAll = () => {
-    // Only consider component layers and regular courses for selection, not main classes
-    const selectableCourses = moduleClasses.filter(course => 
-      !course.isMainClass && !isEnrolled(course.id) && !isCourseFull(course)
-    );
-    const currentlySelected = selectedCourses.filter(id => 
-      moduleClasses.some(course => course.id === id && !course.isMainClass)
-    );
-    
-    if (currentlySelected.length === selectableCourses.length) {
-      clearSelection();
-    } else {
-      selectAllCourses();
-    }
   };
 
   const getRegisteredCount = (subjectId: number): number => {
@@ -117,6 +94,12 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
     const classes = getModuleClasses(subjectId);
     // Only count component layers and regular courses, not main classes
     return classes.filter(course => !course.isMainClass).length;
+  };
+
+  const hasSelectedCourse = (subjectId: number): boolean => {
+    const classes = getModuleClasses(subjectId);
+    const subjectCourseIds = classes.filter(course => !course.isMainClass).map(course => course.id);
+    return selectedCourses.some(courseId => subjectCourseIds.includes(courseId));
   };
 
   if (isLoading) {
@@ -182,18 +165,6 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
             <span className="text-sm text-gray-500">
               {selectedCourses.length} course{selectedCourses.length !== 1 ? 's' : ''} selected
             </span>
-            {selectedSubjectId && (
-              <button
-                onClick={handleSelectAll}
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-500 text-left sm:text-center"
-              >
-                {selectedCourses.filter(id => 
-                  moduleClasses.some(course => course.id === id && !course.isMainClass)
-                ).length === moduleClasses.filter(course => 
-                  !course.isMainClass && !isEnrolled(course.id) && !isCourseFull(course)
-                ).length ? 'Deselect All' : 'Select All Available'}
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -216,6 +187,7 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
                   const registeredCount = getRegisteredCount(subject.id);
                   const totalCount = getTotalCount(subject.id);
                   const isSelected = selectedSubjectId === subject.id;
+                  const hasSelection = hasSelectedCourse(subject.id);
                   
                   return (
                     <div
@@ -228,13 +200,16 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
                       <div className="flex items-center space-x-2">
                         <input
                           type="checkbox"
-                          checked={registeredCount > 0}
+                          checked={registeredCount > 0 || hasSelection}
                           readOnly
                           className="h-4 w-4 text-blue-600 rounded"
                         />
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm truncate ${isSelected ? 'font-medium text-blue-900' : 'text-gray-900'}`}>
                             {subject.subjectName}
+                            {hasSelection && !registeredCount && (
+                              <span className="ml-2 text-xs text-blue-600">• Selected</span>
+                            )}
                           </p>
                             <p className="text-xs text-gray-500">
                               {totalCount} classes
@@ -254,6 +229,9 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
           <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium text-gray-900">Module Classes</h3>
+              {selectedSubjectId && (
+                <span className="text-xs text-gray-500">Choose one class</span>
+              )}
             </div>
           </div>
           <div className="overflow-y-auto h-full lg:h-[calc(600px-48px)]">
@@ -269,28 +247,30 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
               <div className="divide-y divide-gray-200">
                 {moduleClasses.map((course) => {
                   const isSelected = selectedCourses.includes(course.id);
-                  const enrolled = isEnrolled(course.id);
+                  const enrolled = course.isSelected;
                   const isFull = isCourseFull(course);
                   const isSelectable = !enrolled && !isFull && !course.isMainClass; // Main classes are not selectable
                   const isMainClass = course.isMainClass;
                   const isComponentLayer = !isMainClass && course.parentId;
                   
                   return (
-                    <div key={course.id} className={`
-                      ${isMainClass ? 'bg-gray-100' : enrolled ? 'bg-green-50' : ''}
-                      ${isComponentLayer ? 'ml-2 lg:ml-4 border-l-2 border-gray-300' : ''}
-                      px-3 lg:px-4 py-3 hover:bg-gray-50
-                    `}>
+                    <div key={course.id} 
+                      className={`
+                        ${isMainClass ? 'bg-gray-100' : enrolled ? 'bg-green-50' : ''}
+                        ${isComponentLayer ? 'ml-2 lg:ml-4 border-l-2 border-gray-300' : ''}
+                        px-3 lg:px-4 py-3 hover:bg-gray-50
+                      `} 
+                      onClick={() => isSelectable && selectedSubjectId && toggleCourseSelection(course.id, selectedSubjectId)}>
                       <div className="flex flex-col sm:flex-row sm:items-start space-y-2 sm:space-y-0 sm:space-x-3">
-                        <div className="flex items-start space-x-3 flex-1">
-                          {/* Checkbox - only for component layers and regular courses */}
+                        <div className="flex items-start space-x-3 flex-1" >
+                          {/* Radio button - only for component layers and regular courses */}
                           {!isMainClass && (
                             <input
-                              type="checkbox"
+                              type="radio"
+                              name={`subject-${selectedSubjectId}`}
                               checked={isSelected}
-                              onChange={() => isSelectable && toggleCourseSelection(course.id)}
                               disabled={!isSelectable}
-                              className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50 shrink-0"
+                              className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 disabled:opacity-50 shrink-0"
                             />
                           )}
                           

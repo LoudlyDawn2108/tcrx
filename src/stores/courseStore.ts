@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import type { Courses, CourseSubjectDto } from '../services/api';
+import type { SemesterPeriodData, CourseSubjectDto } from '../services/api';
 import apiService from '../services/api';
 
 interface CourseState {
-  coursesData: Courses | null;
+  coursesData: SemesterPeriodData | null;
   selectedCourses: number[];
   selectedSubjectId: number | null;
   isLoading: boolean;
@@ -11,8 +11,7 @@ interface CourseState {
   
   // Actions
   fetchCourses: (registrationPeriodId: number, personId: number) => Promise<void>;
-  toggleCourseSelection: (courseId: number) => void;
-  selectAllCourses: () => void;
+  toggleCourseSelection: (courseId: number, subjectId: number) => void;
   clearSelection: () => void;
   clearError: () => void;
   setSelectedSubject: (subjectId: number | null) => void;
@@ -20,6 +19,7 @@ interface CourseState {
   // Helper getters
   getAvailableCourseSubjects: () => CourseSubjectDto[];
   getModuleClassesForSubject: (subjectId: number) => CourseSubjectDto[];
+  getSelectedCourseForSubject: (subjectId: number) => number | null;
 }
 
 export const useCourseStore = create<CourseState>((set, get) => ({
@@ -94,47 +94,42 @@ export const useCourseStore = create<CourseState>((set, get) => ({
     set({ selectedSubjectId: subjectId });
   },
 
-  toggleCourseSelection: (courseId: number) => {
-    const { selectedCourses } = get();
-    const isSelected = selectedCourses.includes(courseId);
+  getSelectedCourseForSubject: (subjectId: number) => {
+    const { selectedCourses, coursesData } = get();
+    if (!coursesData?.courseRegisterViewObject?.listSubjectRegistrationDtos) return null;
     
-    if (isSelected) {
+    const subject = coursesData.courseRegisterViewObject.listSubjectRegistrationDtos.find(s => s.id === subjectId);
+    if (!subject) return null;
+
+    // Find which course in this subject is selected
+    const subjectCourseIds: number[] = [];
+    subject.courseSubjectDtos.forEach(courseSubject => {
+      if (courseSubject.subCourseSubjects && courseSubject.subCourseSubjects.length > 0) {
+        subjectCourseIds.push(...courseSubject.subCourseSubjects.map(sc => sc.id));
+      } else {
+        subjectCourseIds.push(courseSubject.id);
+      }
+    });
+
+    return selectedCourses.find(courseId => subjectCourseIds.includes(courseId)) || null;
+  },
+
+  toggleCourseSelection: (courseId: number, subjectId: number) => {
+    const { selectedCourses, getSelectedCourseForSubject } = get();
+    const currentSelectedInSubject = getSelectedCourseForSubject(subjectId);
+    
+    if (currentSelectedInSubject === courseId) {
+      // Deselect the current course
       set({ 
         selectedCourses: selectedCourses.filter(id => id !== courseId)
       });
     } else {
+      // Select new course and deselect any previously selected course in this subject
+      const newSelectedCourses = [...selectedCourses.filter(id => id !== currentSelectedInSubject), courseId];
       set({ 
-        selectedCourses: [...selectedCourses, courseId]
+        selectedCourses: newSelectedCourses
       });
     }
-  },
-
-  selectAllCourses: () => {
-    const { selectedSubjectId, coursesData } = get();
-    if (!selectedSubjectId || !coursesData?.courseRegisterViewObject?.listSubjectRegistrationDtos) return;
-    
-    const subject = coursesData.courseRegisterViewObject.listSubjectRegistrationDtos.find(s => s.id === selectedSubjectId);
-    if (!subject) return;
-
-    const selectableCourseIds: number[] = [];
-    
-    subject.courseSubjectDtos.forEach(courseSubject => {
-      // If it has sub-courses, only consider the sub-courses for selection
-      if (courseSubject.subCourseSubjects && courseSubject.subCourseSubjects.length > 0) {
-        courseSubject.subCourseSubjects.forEach(subCourse => {
-          if (!subCourse.isFullClass && !subCourse.check) {
-            selectableCourseIds.push(subCourse.id);
-          }
-        });
-      } else {
-        // Regular course without sub-courses
-        if (!courseSubject.isFullClass && !courseSubject.check) {
-          selectableCourseIds.push(courseSubject.id);
-        }
-      }
-    });
-    
-    set({ selectedCourses: selectableCourseIds });
   },
 
   clearSelection: () => {

@@ -142,10 +142,6 @@ const DashboardPage: React.FC = () => {
                       <p className="mt-1 text-sm text-gray-900">{currentSemester.semesterName}</p>
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium text-gray-500">School Year</h3>
-                      <p className="mt-1 text-sm text-gray-900">{currentSemester.schoolYear.displayName}</p>
-                    </div>
-                    <div>
                       <h3 className="text-sm font-medium text-gray-500">Period</h3>
                       <p className="mt-1 text-sm text-gray-900">
                         {new Date(currentSemester.startDate).toLocaleDateString()} - {new Date(currentSemester.endDate).toLocaleDateString()}
