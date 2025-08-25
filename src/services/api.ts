@@ -615,44 +615,6 @@ class ApiService {
     }
   }
 
-  // Note: Unregistration APIs still use the actual semester ID, not the registration period ID
-  async unregisterFromCourse(courseSubjectId: number, semesterId: number, signal?: AbortSignal): Promise<RegistrationResponse> {
-    if (USE_MOCK_DATA) {
-      await mockApiCall({ success: true });
-      return {
-        success: true,
-        message: 'Successfully unregistered from course',
-        courseSubjectId
-      };
-    }
-
-    try {
-      await this.axiosInstance.delete('/api/StudentCourseSubject/unregister', {
-        data: { courseSubjectId, semesterId },
-        signal
-      });
-      
-      return {
-        success: true,
-        message: 'Successfully unregistered from course',
-        courseSubjectId
-      };
-    } catch (error) {
-      const axiosError = error as AxiosError<{ message?: string }>;
-      
-      // Don't return error response for cancelled requests, let them throw
-      if (axios.isCancel(error)) {
-        throw error;
-      }
-      
-      return {
-        success: false,
-        message: axiosError.response?.data?.message || axiosError.message || 'Unregistration failed',
-        courseSubjectId
-      };
-    }
-  }
-
   // Utility methods
   isAuthenticated(): boolean {
     return !!localStorage.getItem('access_token');
