@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useCourseStore } from '../stores/courseStore';
 import type { CourseSubjectDto, SubjectRegistrationDto } from '../services/api';
+import { useAuthStore } from '../stores/authStore';
 
 interface CourseListProps {
   semesterId: number;
@@ -21,9 +22,13 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
     setSelectedSubject
   } = useCourseStore();
 
+  const { user } = useAuthStore();
+
   useEffect(() => {
-    fetchCourses(semesterId);
-  }, [semesterId, fetchCourses]);
+    if (user) {
+      fetchCourses(semesterId, user.person.id);
+    }
+  }, [semesterId, fetchCourses, user]);
 
   // Get subjects from the course data
   const getSubjects = (): SubjectRegistrationDto[] => {
@@ -153,7 +158,7 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
           <div className="flex items-center space-x-3">
             <h2 className="text-lg font-medium text-gray-900">Course Registration</h2>
             <button
-              onClick={() => fetchCourses(semesterId)}
+              onClick={() => fetchCourses(semesterId, user!.person.id)}
               disabled={isLoading}
               className="inline-flex items-center p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               title="Refresh course data"

@@ -10,7 +10,7 @@ interface CourseState {
   error: string | null;
   
   // Actions
-  fetchCourses: (registrationPeriodId: number) => Promise<void>;
+  fetchCourses: (registrationPeriodId: number, personId: number) => Promise<void>;
   toggleCourseSelection: (courseId: number) => void;
   selectAllCourses: () => void;
   clearSelection: () => void;
@@ -29,11 +29,11 @@ export const useCourseStore = create<CourseState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  fetchCourses: async (registrationPeriodId: number) => {
+  fetchCourses: async (registrationPeriodId: number, personId: number) => {
     set({ isLoading: true, error: null });
     
     try {
-      const coursesData = await apiService.getAvailableCourses(registrationPeriodId);
+      const coursesData = await apiService.getAvailableCourses(registrationPeriodId, personId);
       set({ 
         coursesData,
         isLoading: false 
