@@ -12,7 +12,6 @@ interface AuthState {
   // Actions
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
-  fetchUser: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -58,34 +57,6 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false, 
           error: null 
         });
-      },
-
-      fetchUser: async () => {
-        if (!apiService.isAuthenticated()) {
-          set({ isAuthenticated: false, user: null });
-          return;
-        }
-
-        set({ isLoading: true });
-        
-        try {
-          const user = await apiService.getCurrentUser();
-          set({ 
-            user, 
-            isAuthenticated: true, 
-            isLoading: false,
-            error: null 
-          });
-        } catch {
-          // Token might be expired
-          apiService.logout();
-          set({ 
-            user: null, 
-            isAuthenticated: false, 
-            isLoading: false,
-            error: 'Session expired. Please login again.' 
-          });
-        }
       },
 
       clearError: () => set({ error: null }),

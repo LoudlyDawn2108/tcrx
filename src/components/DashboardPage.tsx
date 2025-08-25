@@ -136,7 +136,7 @@ const DashboardPage: React.FC = () => {
                   )}
                   
                   {/* Semester Information Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1  lg:grid-cols-2 gap-4">
                     <div>
                       <h3 className="text-sm font-medium text-gray-500">Semester</h3>
                       <p className="mt-1 text-sm text-gray-900">{currentSemester.semesterName}</p>
@@ -147,29 +147,6 @@ const DashboardPage: React.FC = () => {
                         {new Date(currentSemester.startDate).toLocaleDateString()} - {new Date(currentSemester.endDate).toLocaleDateString()}
                       </p>
                     </div>
-                    {selectedPeriodId && (
-                      <div className="md:col-span-2 lg:col-span-3">
-                        <h3 className="text-sm font-medium text-gray-500">Selected Period Details</h3>
-                        <div className="mt-1">
-                          {currentSemester.semesterRegisterPeriods
-                            .filter(period => period.id === selectedPeriodId)
-                            .map((period) => (
-                              <div key={period.id} className="text-sm text-gray-900">
-                                <p><strong>{period.name}</strong> (Order: {period.displayOrder})</p>
-                                {period.startRegisterTimeString && (
-                                  <p>Registration: {period.startRegisterTimeString} - {period.endRegisterTimeString}</p>
-                                )}
-                                {period.endUnRegisterTimeString && (
-                                  <p>Unregistration ends: {period.endUnRegisterTimeString}</p>
-                                )}
-                                {period.isLockRegister && (
-                                  <p className="text-red-600">⚠️ Registration is locked</p>
-                                )}
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}

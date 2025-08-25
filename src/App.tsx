@@ -5,12 +5,7 @@ import DashboardPage from './components/DashboardPage';
 import './App.css';
 
 function App() {
-  const { isAuthenticated, fetchUser, isLoading } = useAuthStore();
-
-  useEffect(() => {
-    // Check if user is already authenticated on app load
-    fetchUser();
-  }, [fetchUser]);
+  const { isAuthenticated, isLoading } = useAuthStore()
 
   if (isLoading) {
     return (
