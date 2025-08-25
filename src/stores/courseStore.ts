@@ -8,6 +8,7 @@ interface CourseState {
   selectedSubjectId: number | null;
   isLoading: boolean;
   error: string | null;
+  abortController: AbortController | null;
   
   // Actions
   fetchCourses: (registrationPeriodId: number, personId: number) => Promise<void>;
@@ -15,6 +16,7 @@ interface CourseState {
   clearSelection: () => void;
   clearError: () => void;
   setSelectedSubject: (subjectId: number | null) => void;
+  abortRequests: () => void;
   
   // Helper getters
   getAvailableCourseSubjects: () => CourseSubjectDto[];
@@ -28,21 +30,57 @@ export const useCourseStore = create<CourseState>((set, get) => ({
   selectedSubjectId: null,
   isLoading: false,
   error: null,
+  abortController: null,
 
   fetchCourses: async (registrationPeriodId: number, personId: number) => {
-    set({ isLoading: true, error: null });
+    // Abort any existing request
+    const { abortController: existingController } = get();
+    if (existingController) {
+      existingController.abort();
+    }
+
+    // Create new abort controller
+    const abortController = new AbortController();
+    set({ isLoading: true, error: null, abortController });
     
     try {
-      const coursesData = await apiService.getAvailableCourses(registrationPeriodId, personId);
-      set({ 
-        coursesData,
-        isLoading: false 
-      });
+      const coursesData = await apiService.getAvailableCourses(registrationPeriodId, personId, abortController.signal);
+      
+      // Only update state if this request wasn't aborted
+      if (!abortController.signal.aborted) {
+        set({ 
+          coursesData,
+          isLoading: false,
+          abortController: null
+        });
+      }
     } catch (error) {
+      // Don't set error if request was cancelled
+      if (error && typeof error === 'object' && 'name' in error && error.name === 'CanceledError') {
+        console.log('Request was cancelled');
+        return;
+      }
+      
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch courses';
+      
+      // Only update state if this request wasn't aborted
+      if (!abortController.signal.aborted) {
+        set({ 
+          error: errorMessage,
+          isLoading: false,
+          abortController: null
+        });
+      }
+    }
+  },
+
+  abortRequests: () => {
+    const { abortController } = get();
+    if (abortController) {
+      abortController.abort();
       set({ 
-        error: errorMessage,
-        isLoading: false 
+        abortController: null,
+        isLoading: false
       });
     }
   },

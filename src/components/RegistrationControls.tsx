@@ -19,6 +19,7 @@ const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId 
     checkRegistrationTime
   } = useRegistrationStore();
 
+
   // Check registration time every second
   useEffect(() => {
     const interval = setInterval(checkRegistrationTime, 1000);

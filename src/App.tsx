@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useAuthStore } from './stores/authStore';
 import LoginPage from './components/LoginPage';
 import DashboardPage from './components/DashboardPage';

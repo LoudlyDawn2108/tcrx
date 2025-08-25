@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CourseSubjectDto, RegistrationResponse } from '../services/api';
+import type { CourseSubjectDto } from '../services/api';
 import apiService from '../services/api';
 import { useLogStore } from './logStore';
 
@@ -24,6 +24,7 @@ interface RegistrationState {
   status: RegistrationStatus;
   currentSemesterId: number;
   timeUntilStart: number; // milliseconds
+  abortController: AbortController | null;
   
   // Actions
   addToQueue: (courses: CourseSubjectDto[], semesterId: number) => void;
@@ -32,9 +33,10 @@ interface RegistrationState {
   startRegistrationProcess: (courses?: CourseSubjectDto[], semesterId?: number) => Promise<void>;
   checkRegistrationTime: () => void;
   setSemester: (semesterId: number) => void;
+  abortRegistration: () => void;
   
   // Internal helper
-  processRegistrationRequest: (courseId: number, courseName: string, courseCode: string, semesterId: number) => Promise<void>;
+  processRegistrationRequest: (courseId: number, courseName: string, courseCode: string, semesterId: number, signal?: AbortSignal) => Promise<void>;
 }
 
 export const useRegistrationStore = create<RegistrationState>()(
@@ -45,6 +47,7 @@ export const useRegistrationStore = create<RegistrationState>()(
       status: 'idle',
       currentSemesterId: 13, // Default semester, should be configurable
       timeUntilStart: 0,
+      abortController: null,
 
       addToQueue: (courses, semesterId) => {
         const { queue } = get();
@@ -104,26 +107,65 @@ export const useRegistrationStore = create<RegistrationState>()(
 
         if (coursesToProcess.length === 0) return;
 
-        set({ status: courses ? 'processing_manual' : 'processing_queue' });
-
-        // Process courses sequentially to avoid overwhelming the server
-        for (const course of coursesToProcess) {
-          const courseId = 'courseId' in course ? course.courseId : course.id;
-          const courseName = 'courseName' in course ? course.courseName : (course.displayName || course.subjectName || 'Unknown Course');
-          const courseCode = 'courseCode' in course ? course.courseCode : (course.code || course.subjectCode || 'Unknown Code');
-
-          await state.processRegistrationRequest(courseId, courseName, courseCode, semester);
-          
-          // Small delay between requests to be server-friendly
-          await new Promise(resolve => setTimeout(resolve, 500));
+        // Abort any existing registration process
+        if (state.abortController) {
+          state.abortController.abort();
         }
 
-        // Clear queue if we were processing queued items
-        if (!courses) {
-          set({ queue: [] });
-        }
+        // Create new abort controller for this registration process
+        const abortController = new AbortController();
+        set({ status: courses ? 'processing_manual' : 'processing_queue', abortController });
 
-        set({ status: 'idle' });
+        try {
+          // Process courses sequentially to avoid overwhelming the server
+          for (const course of coursesToProcess) {
+            // Check if process was aborted
+            if (abortController.signal.aborted) {
+              console.log('Registration process was aborted');
+              return;
+            }
+
+            const courseId = 'courseId' in course ? course.courseId : course.id;
+            const courseName = 'courseName' in course ? course.courseName : (course.displayName || course.subjectName || 'Unknown Course');
+            const courseCode = 'courseCode' in course ? course.courseCode : (course.code || course.subjectCode || 'Unknown Code');
+
+            await state.processRegistrationRequest(courseId, courseName, courseCode, semester, abortController.signal);
+            
+            // Small delay between requests to be server-friendly
+            if (!abortController.signal.aborted) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
+
+          // Clear queue if we were processing queued items and process wasn't aborted
+          if (!courses && !abortController.signal.aborted) {
+            set({ queue: [] });
+          }
+        } catch (error) {
+          // Handle cancellation gracefully
+          if (error && typeof error === 'object' && 'name' in error && error.name === 'CanceledError') {
+            console.log('Registration process was cancelled');
+            return;
+          }
+          throw error;
+        } finally {
+          // Only reset status if this abort controller is still the current one
+          const currentState = get();
+          if (currentState.abortController === abortController) {
+            set({ status: 'idle', abortController: null });
+          }
+        }
+      },
+
+      abortRegistration: () => {
+        const { abortController } = get();
+        if (abortController) {
+          abortController.abort();
+          set({ 
+            abortController: null,
+            status: 'idle'
+          });
+        }
       },
 
       checkRegistrationTime: () => {
@@ -149,7 +191,7 @@ export const useRegistrationStore = create<RegistrationState>()(
         set({ currentSemesterId: semesterId });
       },
 
-      processRegistrationRequest: async (courseId, courseName, courseCode, semesterId) => {
+      processRegistrationRequest: async (courseId, courseName, courseCode, semesterId, signal) => {
         const logStore = useLogStore.getState();
         
         // Add pending log entry
@@ -162,46 +204,11 @@ export const useRegistrationStore = create<RegistrationState>()(
           message: 'Attempting to register...',
         });
 
-        let lastLogId = logId;
+        const lastLogId = logId;
         
         try {
-          // The API service already handles retries, but we need to track them in the log
-          const result = await new Promise<RegistrationResponse>((resolve, reject) => {
-            let retryCount = 0;
-            const maxRetries = 5;
-
-            const attemptRequest = async (): Promise<void> => {
-              try {
-                const response = await apiService.registerForCourse(courseId, semesterId);
-                resolve(response);
-              } catch (error) {
-                retryCount++;
-                
-                if (retryCount <= maxRetries) {
-                  // Update log with retry status
-                  const retryLogId = `${courseId}-retry-${retryCount}-${Date.now()}`;
-                  logStore.addLogEntry({
-                    courseId,
-                    courseName,
-                    courseCode,
-                    status: 'retrying',
-                    message: `Retrying registration... (Attempt ${retryCount}/${maxRetries})`,
-                    retryAttempt: retryCount,
-                    maxRetries,
-                  });
-                  lastLogId = retryLogId;
-                  
-                  // Wait before retry (exponential backoff)
-                  const delay = 1000 * Math.pow(2, retryCount - 1);
-                  setTimeout(attemptRequest, delay);
-                } else {
-                  reject(error);
-                }
-              }
-            };
-
-            attemptRequest();
-          });
+          // Use the API service's built-in retry mechanism with abort signal
+          const result = await apiService.registerForCourse(courseId, semesterId, signal);
 
           if (result.success) {
             logStore.updateLogEntry(lastLogId, {
@@ -216,10 +223,19 @@ export const useRegistrationStore = create<RegistrationState>()(
           }
 
         } catch (error) {
+          // Handle cancellation gracefully
+          if (error && typeof error === 'object' && 'name' in error && error.name === 'CanceledError') {
+            logStore.updateLogEntry(lastLogId, {
+              status: 'failed',
+              message: 'Registration was cancelled',
+            });
+            throw error; // Re-throw to stop the registration process
+          }
+
           const errorMessage = error instanceof Error ? error.message : 'Registration failed';
           logStore.updateLogEntry(lastLogId, {
             status: 'failed',
-            message: `Registration permanently failed: ${errorMessage}`,
+            message: `Registration failed: ${errorMessage}`,
           });
         }
       },

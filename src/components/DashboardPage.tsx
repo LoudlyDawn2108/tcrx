@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { useRegistrationStore } from '../stores/registrationStore';
 import { useSemesterStore } from '../stores/semesterStore';
+import { useRequestCleanup } from '../hooks/useRequestCleanup';
 import CourseList from './CourseList';
 import RegistrationControls from './RegistrationControls';
 import LogView from './LogView';
@@ -13,6 +14,9 @@ const DashboardPage: React.FC = () => {
   
   // State for selected registration period
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
+
+  // Clean up any ongoing requests when component unmounts (e.g., on logout)
+  useRequestCleanup();
 
   useEffect(() => {
     // Fetch current semester info on load

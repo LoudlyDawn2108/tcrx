@@ -386,7 +386,12 @@ class ApiService {
     );
   }
 
-  private isRetryableError(error: AxiosError): boolean {
+  private isRetryableError(error: any): boolean {
+    // Don't retry if the request was cancelled/aborted
+    if (axios.isCancel(error) || error.code === 'ERR_CANCELED') {
+      return false;
+    }
+    
     // Network errors or server errors (5xx)
     if (!error.response) return true; // Network error
     
@@ -441,12 +446,12 @@ class ApiService {
     }
   }
 
-  async getCurrentUser(): Promise<User> {
+  async getCurrentUser(signal?: AbortSignal): Promise<User> {
     if (USE_MOCK_DATA) {
       return await mockApiCall(mockUser);
     }
 
-    const response = await this.axiosInstance.get('/api/users/getCurrentUser');
+    const response = await this.axiosInstance.get('/api/users/getCurrentUser', { signal });
     return response.data;
   }
 
@@ -455,7 +460,7 @@ class ApiService {
     localStorage.removeItem('refresh_token');
   }
 
-  async getCurrentSemesterInfo(): Promise<SemesterInfo> {
+  async getCurrentSemesterInfo(signal?: AbortSignal): Promise<SemesterInfo> {
     if (USE_MOCK_DATA) {
       // Return mock semester info for development
       const mockSemesterInfo: SemesterInfo = {
@@ -526,12 +531,12 @@ class ApiService {
       return await mockApiCall(mockSemesterInfo);
     }
 
-    const response = await this.axiosInstance.get('/api/semester/semester_info');
+    const response = await this.axiosInstance.get('/api/semester/semester_info', { signal });
     return response.data;
   }
 
   // Course management methods
-  async getAvailableCourses(registrationPeriodId: number, personId: number): Promise<SemesterPeriodData> {
+  async getAvailableCourses(registrationPeriodId: number, personId: number, signal?: AbortSignal): Promise<SemesterPeriodData> {
     if (USE_MOCK_DATA) {
       // Simulate some network delay
       return await mockApiCall(mockCourses);
@@ -539,7 +544,7 @@ class ApiService {
 
     try {
       console.log(`Fetching courses for registration period ID: ${registrationPeriodId}`);
-      const response = await this.axiosInstance.get<SemesterPeriodData>(`/api/cs_reg_mongo/findByPeriod/${personId}/${registrationPeriodId}`);
+      const response = await this.axiosInstance.get<SemesterPeriodData>(`/api/cs_reg_mongo/findByPeriod/${personId}/${registrationPeriodId}`, { signal });
 
       console.log(`Received ${JSON.stringify(response.data, null, 2).length} courses from API`);
       
@@ -548,6 +553,12 @@ class ApiService {
       return courses;
     } catch (error) {
       console.error('Error fetching courses:', error);
+      
+      // Don't fallback to mock data if request was cancelled
+      if (axios.isCancel(error)) {
+        throw error;
+      }
+      
       // Fallback to mock data if API fails
       console.log('Falling back to mock data due to API error');
       return await mockApiCall(mockCourses);
@@ -556,7 +567,7 @@ class ApiService {
 
   // Registration methods
   // Note: Registration APIs still use the actual semester ID, not the registration period ID
-  async registerForCourse(courseSubjectId: number, semesterId: number): Promise<RegistrationResponse> {
+  async registerForCourse(courseSubjectId: number, semesterId: number, signal?: AbortSignal): Promise<RegistrationResponse> {
     if (USE_MOCK_DATA) {
       // Simulate registration with some randomness for testing
       const success = Math.random() > 0.3; // 70% success rate for testing
@@ -581,7 +592,7 @@ class ApiService {
       await this.axiosInstance.post('/api/StudentCourseSubject/register', {
         courseSubjectId,
         semesterId
-      });
+      }, { signal });
       
       return {
         success: true,
@@ -590,6 +601,12 @@ class ApiService {
       };
     } catch (error) {
       const axiosError = error as AxiosError<{ message?: string }>;
+      
+      // Don't return error response for cancelled requests, let them throw
+      if (axios.isCancel(error)) {
+        throw error;
+      }
+      
       return {
         success: false,
         message: axiosError.response?.data?.message || axiosError.message || 'Registration failed',
@@ -599,7 +616,7 @@ class ApiService {
   }
 
   // Note: Unregistration APIs still use the actual semester ID, not the registration period ID
-  async unregisterFromCourse(courseSubjectId: number, semesterId: number): Promise<RegistrationResponse> {
+  async unregisterFromCourse(courseSubjectId: number, semesterId: number, signal?: AbortSignal): Promise<RegistrationResponse> {
     if (USE_MOCK_DATA) {
       await mockApiCall({ success: true });
       return {
@@ -611,7 +628,8 @@ class ApiService {
 
     try {
       await this.axiosInstance.delete('/api/StudentCourseSubject/unregister', {
-        data: { courseSubjectId, semesterId }
+        data: { courseSubjectId, semesterId },
+        signal
       });
       
       return {
@@ -621,6 +639,12 @@ class ApiService {
       };
     } catch (error) {
       const axiosError = error as AxiosError<{ message?: string }>;
+      
+      // Don't return error response for cancelled requests, let them throw
+      if (axios.isCancel(error)) {
+        throw error;
+      }
+      
       return {
         success: false,
         message: axiosError.response?.data?.message || axiosError.message || 'Unregistration failed',
