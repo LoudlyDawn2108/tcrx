@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
-import { useRegistrationStore } from '../stores/registrationStore';
 import { useSemesterStore } from '../stores/semesterStore';
 import { useRequestCleanup } from '../hooks/useRequestCleanup';
 import CourseList from './CourseList';
@@ -9,7 +8,6 @@ import LogView from './LogView';
 
 const DashboardPage: React.FC = () => {
   const { user, logout } = useAuthStore();
-  const { checkRegistrationTime } = useRegistrationStore();
   const { currentSemester, loading: semesterLoading, error: semesterError, fetchCurrentSemester } = useSemesterStore();
   
   // State for selected registration period
@@ -30,14 +28,6 @@ const DashboardPage: React.FC = () => {
       setSelectedPeriodId(currentSemester.semesterRegisterPeriods[0].id);
     }
   }, [currentSemester, selectedPeriodId]);
-
-  // Fetch courses and enrolled courses when period is selected
-
-  // Luôn chạy interval checkRegistrationTime ở DashboardPage để auto đăng ký không bị miss
-  useEffect(() => {
-    const interval = setInterval(checkRegistrationTime, 1000);
-    return () => clearInterval(interval);
-  }, [checkRegistrationTime]);
 
   const handlePeriodChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const periodId = parseInt(event.target.value);

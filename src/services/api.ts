@@ -61,8 +61,8 @@ export interface SemesterPeriodData {
 
 export interface CourseRegisterViewObject {
   isAllowUnRegister: boolean;
-  startDate: number;
-  endDate: number;
+  startDate: number; // Registration start time
+  endDate: number; // Registration end time
   startDateString: string;
   endDateString: string;
   startUnDate: null | number;
@@ -327,32 +327,9 @@ const BASE_URL = 'https://sinhvien1.tlu.edu.vn/education';
 const USE_MOCK_DATA = false; // Set to false to use real API (course listing now integrated)
 
 class ApiService {
-  /**
-   * Đăng ký môn học bằng object đầy đủ (CourseSubjectDto)
-   * POST lên endpoint /education/api/cs_reg_mongo/add-register/{personId}/{registrationPeriodId} với body là object
-   */
-  async registerForCourseFullObject(courseObj: CourseSubjectDto, personId: number, registrationPeriodId: number): Promise<RegistrationResponse> {
-    try {
-      const url = `/education/api/cs_reg_mongo/add-register/${personId}/${registrationPeriodId}`;
-      console.log('[API] Đăng ký:', { url, payload: courseObj });
-      await this.axiosInstance.post(url, courseObj);
-      return {
-        success: true,
-        message: 'Successfully registered for course',
-        courseSubjectId: courseObj.id
-      };
-    } catch (error) {
-      const axiosError = error as AxiosError<{ message?: string }>;
-      return {
-        success: false,
-        message: axiosError.response?.data?.message || axiosError.message || 'Registration failed',
-        courseSubjectId: courseObj.id
-      };
-    }
-  }
+  
   private axiosInstance: AxiosInstance;
-  private retryCount = 5;
-  private baseRetryDelay = 1000; // 1 second
+  private retryCount = 10;
 
   constructor() {
     this.axiosInstance = axios.create({
@@ -383,7 +360,10 @@ class ApiService {
     this.axiosInstance.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        const config = error.config as AxiosRequestConfig & { _retryCount?: number };
+        const config = error.config as AxiosRequestConfig & {
+          _retryCount?: number;
+          onRetry?: (retryCount: number, error: AxiosError) => void;
+        };
         
         // Check if this is a retryable error
         const isRetryableError = this.isRetryableError(error);
@@ -391,20 +371,34 @@ class ApiService {
         
         if (isRetryableError && hasRetriesLeft && config) {
           config._retryCount = (config._retryCount || 0) + 1;
-          
-          // Calculate exponential backoff delay
-          const delay = this.baseRetryDelay * Math.pow(2, config._retryCount - 1);
+
+          // Check for and call the onRetry callback
+          if (config.onRetry) {
+            config.onRetry(config._retryCount, error);
+          }
           
           // Log retry attempt
-          console.log(`Retrying request (attempt ${config._retryCount}/${this.retryCount}) after ${delay}ms delay`);
-          
-          // Wait before retrying
-          await this.delay(delay);
+          console.log(`Interceptor: Retrying request (attempt ${config._retryCount}/${this.retryCount})`);
           
           // Retry the request
           return this.axiosInstance.request(config);
         }
         
+        return Promise.reject(error);
+      }
+    );
+
+    // Response interceptor to handle session expire
+    this.axiosInstance.interceptors.response.use(
+      (response) => response,
+      async (error: AxiosError) => {
+        if (error.response?.status === 401) {
+          // Handle session expiration (e.g., redirect to login)
+          console.warn('Session expired. Redirecting to login...');
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
     );
@@ -423,9 +417,6 @@ class ApiService {
     return status >= 500 || status === 429; // Server errors or rate limiting
   }
 
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
 
   // Authentication methods
   async login(username: string, password: string): Promise<LoginResponse> {
@@ -570,8 +561,8 @@ class ApiService {
       console.log(`Fetching courses for registration period ID: ${registrationPeriodId}`);
       const response = await this.axiosInstance.get<SemesterPeriodData>(`/api/cs_reg_mongo/findByPeriod/${personId}/${registrationPeriodId}`, { signal });
 
-      console.log(`Received ${JSON.stringify(response.data, null, 2).length} courses from API`);
-      
+      console.log(`Received ${response.data.courseRegisterViewObject?.listSubjectRegistrationDtos?.length || 0} courses from API`);
+
       // Transform the API response to match our Course interface
       const courses: SemesterPeriodData = response.data;
       return courses;
@@ -589,52 +580,40 @@ class ApiService {
     }
   }
 
-  // Registration methods
-  // Note: Registration APIs still use the actual semester ID, not the registration period ID
-  async registerForCourse(courseSubjectId: number, semesterId: number, signal?: AbortSignal): Promise<RegistrationResponse> {
-    if (USE_MOCK_DATA) {
-      // Simulate registration with some randomness for testing
-      const success = Math.random() > 0.3; // 70% success rate for testing
-      
-      if (success) {
-        await mockApiCall({ success: true });
-        return {
-          success: true,
-          message: 'Successfully registered for course',
-          courseSubjectId
-        };
-      } else {
+
+  /**
+   * Đăng ký môn học bằng object đầy đủ (CourseSubjectDto)
+   * POST lên endpoint /api/cs_reg_mongo/add-register/{personId}/{registrationPeriodId} với body là object
+   */
+  async registerForCourseFullObject(
+    courseObj: CourseSubjectDto, 
+    personId: number, 
+    registrationPeriodId: number,
+    config?: AxiosRequestConfig & { onRetry?: (retryCount: number, error: AxiosError) => void }
+  ): Promise<RegistrationResponse> {
+    try {
+      const url = `/api/cs_reg_mongo/add-register/${personId}/${registrationPeriodId}`;
+      console.log('[API] Đăng ký:', { url, payload: courseObj });
+      const result = await this.axiosInstance.post(url, courseObj, config);
+      if (result.data.status != 0) {
+        console.error('[API] Đăng ký thất bại:', { url, payload: courseObj, response: result.data });
         return {
           success: false,
-          message: 'Course is full or registration failed',
-          courseSubjectId
+          message: result.data.message || 'Registration failed',
+          courseSubjectId: courseObj.id
         };
       }
-    }
-
-    try {
-      await this.axiosInstance.post('/api/StudentCourseSubject/register', {
-        courseSubjectId,
-        semesterId
-      }, { signal });
-      
       return {
         success: true,
         message: 'Successfully registered for course',
-        courseSubjectId
+        courseSubjectId: courseObj.id
       };
     } catch (error) {
       const axiosError = error as AxiosError<{ message?: string }>;
-      
-      // Don't return error response for cancelled requests, let them throw
-      if (axios.isCancel(error)) {
-        throw error;
-      }
-      
       return {
         success: false,
         message: axiosError.response?.data?.message || axiosError.message || 'Registration failed',
-        courseSubjectId
+        courseSubjectId: courseObj.id
       };
     }
   }

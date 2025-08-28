@@ -269,6 +269,7 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
                               type="radio"
                               name={`subject-${selectedSubjectId}`}
                               checked={isSelected}
+                              onChange={() => {}}
                               disabled={!isSelectable}
                               className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 disabled:opacity-50 shrink-0"
                             />

@@ -18,7 +18,7 @@ interface LogState {
   logEntries: LogEntry[];
   
   // Actions
-  addLogEntry: (entry: Omit<LogEntry, 'id' | 'timestamp'>) => void;
+  addLogEntry: (entry: Omit<LogEntry, 'id' | 'timestamp'>) => string;
   updateLogEntry: (id: string, updates: Partial<LogEntry>) => void;
   clearLogs: () => void;
   getLogEntryByCourseId: (courseId: number) => LogEntry | undefined;
@@ -28,15 +28,17 @@ export const useLogStore = create<LogState>((set, get) => ({
   logEntries: [],
 
   addLogEntry: (entry) => {
+    const id = `${entry.courseId}-${Date.now()}`;
     const newEntry: LogEntry = {
       ...entry,
-      id: `${entry.courseId}-${Date.now()}`,
+      id,
       timestamp: new Date(),
     };
     
     set((state) => ({
       logEntries: [newEntry, ...state.logEntries]
     }));
+    return id;
   },
 
   updateLogEntry: (id, updates) => {

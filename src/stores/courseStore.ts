@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { SemesterPeriodData, CourseSubjectDto } from '../services/api';
 import apiService from '../services/api';
+import { useRegistrationStore } from './registrationStore';
 
 interface CourseState {
   coursesData: SemesterPeriodData | null;
@@ -54,6 +55,14 @@ export const useCourseStore = create<CourseState>((set, get) => ({
           isLoading: false,
           abortController: null
         });
+
+        // Update registration times from API data
+        const registrationTimes = coursesData.courseRegisterViewObject;
+        if (registrationTimes && registrationTimes.startDate && registrationTimes.endDate) {
+          const registrationStore = useRegistrationStore.getState();
+          registrationStore.updateRegistrationTimes(registrationTimes.startDate, registrationTimes.endDate);
+          registrationStore.setSemesterPeriod(registrationPeriodId);
+        }
       }
     } catch (error) {
       // Don't set error if request was cancelled
@@ -179,17 +188,8 @@ export const useCourseStore = create<CourseState>((set, get) => ({
 
   // Helper: Lấy object lớp học phần đầy đủ từ coursesData theo id
   getCourseObjectById: (courseId: number) => {
-    const { coursesData } = get();
-    if (!coursesData?.courseRegisterViewObject?.listSubjectRegistrationDtos) return undefined;
-    for (const subject of coursesData.courseRegisterViewObject.listSubjectRegistrationDtos) {
-      for (const courseSubject of subject.courseSubjectDtos) {
-        if (courseSubject.id === courseId) return courseSubject;
-        if (courseSubject.subCourseSubjects && courseSubject.subCourseSubjects.length > 0) {
-          const found = courseSubject.subCourseSubjects.find(sub => sub.id === courseId);
-          if (found) return found;
-        }
-      }
-    }
-    return undefined;
+    const { getAvailableCourseSubjects } = get();
+    const availableCourses = getAvailableCourseSubjects();
+    return availableCourses.find(course => course.id === courseId);
   },
 }));

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useCourseStore } from '../stores/courseStore';
-import { useRegistrationStore, REGISTRATION_START_TIME } from '../stores/registrationStore';
+import { useRegistrationStore, REGISTRATION_START_TIME, REGISTRATION_END_TIME, USE_TEST_TIMES } from '../stores/registrationStore';
 import { useAuthStore } from '../stores/authStore';
 
 interface RegistrationControlsProps {
@@ -12,14 +12,17 @@ interface RegistrationControlsProps {
   registrationPeriodId?: number;
 }
 
-const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId, registrationPeriodId }) => {
+const RegistrationControls: React.FC<RegistrationControlsProps> = ({ registrationPeriodId }) => {
   const { user } = useAuthStore();
   const { selectedCourses, clearSelection, getAvailableCourseSubjects } = useCourseStore();
   const { 
     queue,
-    isRegistrationOpen,
+    registrationTimeStatus,
     status,
     timeUntilStart,
+    timeUntilEnd,
+    registrationStartTime,
+    registrationEndTime,
     addToQueue,
     clearQueue,
     startRegistrationProcess,
@@ -38,27 +41,75 @@ const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId,
   const hasSelection = selectedCourses.length > 0;
   const isProcessing = status !== 'idle';
 
-  const formatTimeUntilStart = (milliseconds: number): string => {
+  const formatTime = (milliseconds: number): string => {
     if (milliseconds <= 0) return '00:00:00';
     
     const totalSeconds = Math.floor(milliseconds / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
+    const days = Math.floor(totalSeconds / (24 * 3600));
+    const hours = Math.floor((totalSeconds % (24 * 3600)) / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
     
+    if (days > 0) {
+      return `${days}d ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const getRegistrationStatusInfo = () => {
+    let currentStartTime = registrationStartTime || REGISTRATION_START_TIME;
+    let currentEndTime = registrationEndTime || REGISTRATION_END_TIME;
+    if (USE_TEST_TIMES) {
+      currentStartTime = REGISTRATION_START_TIME;
+      currentEndTime = REGISTRATION_END_TIME;
+    }
+    
+    switch (registrationTimeStatus) {
+      case 'waiting':
+        return {
+          color: 'yellow',
+          text: 'Registration opens in:',
+          time: formatTime(timeUntilStart),
+          details: `Start time: ${currentStartTime.toLocaleString()}`,
+          icon: '⏳'
+        };
+      case 'open':
+        return {
+          color: 'green',
+          text: 'Registration is OPEN - Ends in:',
+          time: formatTime(timeUntilEnd),
+          details: `End time: ${currentEndTime.toLocaleString()}`,
+          icon: '✅'
+        };
+      case 'ended':
+        return {
+          color: 'red',
+          text: 'Registration has ENDED',
+          time: '',
+          details: `Ended at: ${currentEndTime.toLocaleString()}`,
+          icon: '❌'
+        };
+      default:
+        return {
+          color: 'gray',
+          text: 'Loading registration status...',
+          time: '',
+          details: '',
+          icon: '⏱️'
+        };
+    }
   };
 
   const handleRegisterNow = async () => {
     if (!hasSelection || !user || !registrationPeriodId) return;
-    await startRegistrationProcess(selectedCoursesData, semesterId, user.person.id, registrationPeriodId);
+    await startRegistrationProcess(selectedCoursesData, user.person.id, registrationPeriodId);
     clearSelection();
   };
 
   const handleAddToQueue = () => {
     if (!hasSelection) return;
     
-    addToQueue(selectedCoursesData, semesterId);
+    addToQueue(selectedCoursesData);
     clearSelection();
   };
 
@@ -79,25 +130,45 @@ const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId,
       
       {/* Registration Status */}
       <div className="mb-6">
-        {isRegistrationOpen ? (
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-green-400 rounded-full mr-2"></div>
-            <span className="text-sm font-medium text-green-700">Registration is OPEN</span>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-yellow-400 rounded-full mr-2"></div>
-              <span className="text-sm font-medium text-yellow-700">Registration opens in:</span>
+        {(() => {
+          const statusInfo = getRegistrationStatusInfo();
+          return (
+            <div className="space-y-2">
+              <div className="flex items-center">
+                <div className={`w-3 h-3 rounded-full mr-2 ${
+                  statusInfo.color === 'green' ? 'bg-green-400' :
+                  statusInfo.color === 'yellow' ? 'bg-yellow-400' :
+                  statusInfo.color === 'red' ? 'bg-red-400' :
+                  'bg-gray-400'
+                }`}></div>
+                <span className={`text-sm font-medium ${
+                  statusInfo.color === 'green' ? 'text-green-700' :
+                  statusInfo.color === 'yellow' ? 'text-yellow-700' :
+                  statusInfo.color === 'red' ? 'text-red-700' :
+                  'text-gray-700'
+                }`}>
+                  <span className="mr-2">{statusInfo.icon}</span>
+                  {statusInfo.text}
+                </span>
+              </div>
+              {statusInfo.time && (
+                <div className="text-2xl font-mono font-bold text-gray-900">
+                  {statusInfo.time}
+                </div>
+              )}
+              {statusInfo.details && (
+                <div className="text-xs text-gray-500">
+                  {statusInfo.details}
+                </div>
+              )}
+              {USE_TEST_TIMES && (
+                <div className="text-xs text-blue-500 font-medium">
+                  ⚠️ Using test times for development
+                </div>
+              )}
             </div>
-            <div className="text-2xl font-mono font-bold text-gray-900">
-              {formatTimeUntilStart(timeUntilStart)}
-            </div>
-            <div className="text-xs text-gray-500">
-              Start time: {REGISTRATION_START_TIME.toLocaleString()}
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Processing Status */}
@@ -128,7 +199,7 @@ const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId,
 
       {/* Action Buttons */}
       <div className="space-y-3">
-        {isRegistrationOpen ? (
+        {registrationTimeStatus === 'open' ? (
           <button
             onClick={handleRegisterNow}
             disabled={!hasSelection || isProcessing}
@@ -136,7 +207,7 @@ const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId,
           >
             {isProcessing ? 'Processing...' : 'Register Selected Courses'}
           </button>
-        ) : (
+        ) : registrationTimeStatus === 'waiting' ? (
           <button
             onClick={handleAddToQueue}
             disabled={!hasSelection}
@@ -144,9 +215,13 @@ const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId,
           >
             Add to Registration Queue
           </button>
+        ) : (
+          <div className="w-full flex justify-center py-2 px-4 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-red-50">
+            Registration Period Has Ended
+          </div>
         )}
         
-        {hasSelection && (
+        {hasSelection && registrationTimeStatus !== 'ended' && (
           <button
             onClick={clearSelection}
             className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -164,13 +239,8 @@ const RegistrationControls: React.FC<RegistrationControlsProps> = ({ semesterId,
             <ul className="text-xs text-gray-700 mb-2">
               {queue.map((item) => (
                 <li key={item.subjectId} className="mb-1">
-                  <span className="font-semibold">{item.courseName}</span>
-                  {item.subCourseId && (
-                    <>
-                      {" "}- Thực hành: <span className="font-semibold">{item.subCourseId}</span>
-                    </>
-                  )}
-                  <span className="text-gray-400"> (Mã: {item.courseCode})</span>
+                  <span className="font-semibold">{item.displayName}</span>
+                  <span className="text-gray-400"> (Mã: {item.code})</span>
                 </li>
               ))}
             </ul>
