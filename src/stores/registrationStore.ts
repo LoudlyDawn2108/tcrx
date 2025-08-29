@@ -4,9 +4,10 @@ import type { CourseSubjectDto } from '../services/api';
 import apiService from '../services/api';
 import { useLogStore } from './logStore';
 import { useAuthStore } from './authStore';
+import { useCourseStore } from './courseStore';
 
 // Configuration - for testing purposes
-export const USE_TEST_TIMES = false; // Set to true to use test times instead of API times
+export const USE_TEST_TIMES = true; // Set to true to use test times instead of API times
 export const REGISTRATION_START_TIME = new Date(Date.now() + 1 * 80 * 1000); // Test start time
 export const REGISTRATION_END_TIME = new Date('2025-08-29T23:59:59'); // Test end time
 
@@ -32,7 +33,7 @@ interface RegistrationState {
   checkRegistrationTime: () => void;
   updateRegistrationTimes: (startTime?: number, endTime?: number) => void;
   setSemesterPeriod: (semesterId: number) => void;
-  
+  processRegistrationRequest: (course: CourseSubjectDto, personId: number, registrationPeriodId: number) => Promise<void>;
 }
 
 export const useRegistrationStore = create<RegistrationState>()(
@@ -71,89 +72,30 @@ export const useRegistrationStore = create<RegistrationState>()(
       startRegistrationProcess: async (courses, personId, registrationPeriodId) => {
         console.log('[REG-PROCESS] Called startRegistrationProcess', { courses, personId, registrationPeriodId });
         const state = get();
-        const logStore = useLogStore.getState();
-        const maxRetries = 10;
         if (!personId || !registrationPeriodId) {
           throw new Error('personId và registrationPeriodId là bắt buộc khi đăng ký!');
         }
 
         if (courses && courses.length > 0) {
           set({ status: 'processing_manual' });
+
           await Promise.all(courses.map(async (course) => {
-
-            const lastLogId = logStore.addLogEntry({
-              courseId: course.id,
-              courseName: course.displayName || course.subjectName || 'Unknown course',
-              courseCode: course.code || course.subjectCode || 'Unknown course',
-              status: 'pending',
-              message: 'Attempting to register (practical class)...',
-            });
-
-            const result = await apiService.registerForCourseFullObject(course, personId, registrationPeriodId, {
-              onRetry: (retryCount) => {
-                logStore.updateLogEntry(lastLogId, {
-                  status: 'retrying',
-                  message: `Retrying... (Attempt ${retryCount}/${maxRetries})`,
-                  retryAttempt: retryCount,
-                  maxRetries: 10,
-                });
-              }
-            });
-
-            if (result.success) {
-              logStore.updateLogEntry(lastLogId, {
-                status: 'success',
-                message: 'Successfully registered for course!',
-              });
-            } else {
-              logStore.updateLogEntry(lastLogId, {
-                status: 'failed',
-                message: result.message || 'Registration failed',
-              });
-            }
+            await state.processRegistrationRequest(course, personId, registrationPeriodId);
           }));
         } else {
           const queue = state.queue;
+
           if (queue.length === 0) return;
+
           set({ status: 'processing_queue' });
+
           await Promise.all(queue.map(async (item) => {
-              const lastLogId = logStore.addLogEntry({
-                courseId: item.id,
-                courseName: item.displayName || item.subjectName || 'Unknown course',
-                courseCode: item.code || item.subjectCode || 'Unknown course',
-                status: 'pending',
-                message: 'Attempting to register (practical class)...',
-              });
-
-              const result = await apiService.registerForCourseFullObject(item, personId, registrationPeriodId, {
-                onRetry: (retryCount) => {
-                  logStore.addLogEntry({
-                      courseId: item.id,
-                      courseName: item.displayName || item.subjectName || 'Unknown course',
-                      courseCode: item.code || item.subjectCode || 'Unknown course',
-                      status: 'retrying',
-                      message: `Retrying... (Attempt ${retryCount}/${maxRetries})`,
-                      retryAttempt: retryCount,
-                      maxRetries: 10,
-                    });
-                  }
-              });
-
-              if (result.success) {
-                logStore.updateLogEntry(lastLogId, {
-                  status: 'success',
-                  message: 'Successfully registered for course!',
-                });
-              } else {
-                logStore.updateLogEntry(lastLogId, {
-                  status: 'failed',
-                  message: result.message || 'Registration failed',
-                });
-              }
-            }));
-
+            await state.processRegistrationRequest(item, personId, registrationPeriodId);
+          }));
+          
           set({ queue: [] });
         }
+
         set({ status: 'idle' });
       },
 
@@ -232,6 +174,41 @@ export const useRegistrationStore = create<RegistrationState>()(
       setSemesterPeriod: (semesterId) => {
         set({ currentSemesterPeriodId: semesterId });
       },
+
+      processRegistrationRequest: async (courseObj: CourseSubjectDto, personId: number, registrationPeriodId: number) => {
+        const logStore = useLogStore.getState();
+        const maxRetries = 100;
+        const lastLogId = logStore.addLogEntry({
+          courseId: courseObj.id,
+          courseName: courseObj.displayName || courseObj.subjectName || 'Unknown course',
+          courseCode: courseObj.code || courseObj.subjectCode || 'Unknown course',
+          status: 'pending',
+          message: 'Attempting to register (practical class)...',
+        });
+
+        const result = await apiService.registerForCourseFullObject(courseObj, personId, registrationPeriodId, {
+          onRetry: (retryCount) => {
+            logStore.updateLogEntry(lastLogId, {
+              status: 'retrying',
+              message: `Retrying... (Attempt ${retryCount}/${maxRetries})`,
+              retryAttempt: retryCount,
+              maxRetries,
+            });
+          }
+        });
+
+        if (result.success) {
+          logStore.updateLogEntry(lastLogId, {
+            status: 'success',
+            message: 'Successfully registered for course!',
+          });
+        } else {
+          logStore.updateLogEntry(lastLogId, {
+            status: 'failed',
+            message: result.message || 'Registration failed',
+          });
+        }
+      }
 
       
     }),

@@ -329,13 +329,13 @@ const USE_MOCK_DATA = false; // Set to false to use real API (course listing now
 class ApiService {
   
   private axiosInstance: AxiosInstance;
-  private retryCount = 10;
+  private retryCount = 100;
   private sessionExpiredCallback?: () => void;
 
   constructor() {
     this.axiosInstance = axios.create({
       baseURL: BASE_URL,
-      timeout: 30000,
+      timeout: 60000,
       headers: {
         'Content-Type': 'application/json',
       },
