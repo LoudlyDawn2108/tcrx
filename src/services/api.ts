@@ -330,6 +330,7 @@ class ApiService {
   
   private axiosInstance: AxiosInstance;
   private retryCount = 10;
+  private sessionExpiredCallback?: () => void;
 
   constructor() {
     this.axiosInstance = axios.create({
@@ -341,6 +342,11 @@ class ApiService {
     });
 
     this.setupInterceptors();
+  }
+
+  // Method to set callback for session expiration
+  setSessionExpiredCallback(callback?: () => void) {
+    this.sessionExpiredCallback = callback;
   }
 
   private setupInterceptors() {
@@ -356,7 +362,7 @@ class ApiService {
       (error) => Promise.reject(error)
     );
 
-    // Response interceptor with intelligent retry mechanism
+    // Single response interceptor that handles both session expiration and retries
     this.axiosInstance.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
@@ -364,8 +370,34 @@ class ApiService {
           _retryCount?: number;
           onRetry?: (retryCount: number, error: AxiosError) => void;
         };
+
+        // Handle authentication and authorization errors
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          const statusCode = error.response.status;
+          const errorMessage = statusCode === 401 
+            ? 'Authentication failed - session expired or invalid token' 
+            : 'Access forbidden - insufficient permissions';
+            
+          console.log(`${errorMessage} (${statusCode}). Clearing tokens...`);
+          console.warn(errorMessage);
+          
+          // Clear tokens for both 401 and 403 errors
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          
+          // Notify auth store if callback is set (this will trigger logout and redirect)
+          if (this.sessionExpiredCallback) {
+            this.sessionExpiredCallback();
+          } else {
+            // Fallback: redirect to login page if no callback is set
+            window.location.href = '/login';
+          }
+          
+          // Don't retry on authentication/authorization errors, just reject
+          return Promise.reject(error);
+        }
         
-        // Check if this is a retryable error
+        // Check if this is a retryable error (excluding 401 which is handled above)
         const isRetryableError = this.isRetryableError(error);
         const hasRetriesLeft = (config._retryCount || 0) < this.retryCount;
         
@@ -387,21 +419,6 @@ class ApiService {
         return Promise.reject(error);
       }
     );
-
-    // Response interceptor to handle session expire
-    this.axiosInstance.interceptors.response.use(
-      (response) => response,
-      async (error: AxiosError) => {
-        if (error.response?.status === 401) {
-          // Handle session expiration (e.g., redirect to login)
-          console.warn('Session expired. Redirecting to login...');
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
-        }
-        return Promise.reject(error);
-      }
-    );
   }
 
   private isRetryableError(error: any): boolean {
@@ -410,7 +427,17 @@ class ApiService {
       return false;
     }
     
-    // Network errors or server errors (5xx)
+    // Don't retry authentication/authorization errors (401, 403)
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      return false;
+    }
+    
+    // Don't retry client errors (4xx) except for 429 (rate limiting)
+    if (error.response?.status >= 400 && error.response?.status < 500 && error.response?.status !== 429) {
+      return false;
+    }
+    
+    // Network errors or server errors (5xx) and rate limiting (429)
     if (!error.response) return true; // Network error
     
     const status = error.response.status;

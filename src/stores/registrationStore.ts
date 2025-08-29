@@ -6,9 +6,9 @@ import { useLogStore } from './logStore';
 import { useAuthStore } from './authStore';
 
 // Configuration - for testing purposes
-export const USE_TEST_TIMES = true; // Set to true to use test times instead of API times
-export const REGISTRATION_START_TIME = new Date(Date.now() + 1 * 60 * 1000); // Test start time
-export const REGISTRATION_END_TIME = new Date('2025-08-28T23:59:59'); // Test end time
+export const USE_TEST_TIMES = false; // Set to true to use test times instead of API times
+export const REGISTRATION_START_TIME = new Date(Date.now() + 1 * 80 * 1000); // Test start time
+export const REGISTRATION_END_TIME = new Date('2025-08-29T23:59:59'); // Test end time
 
 export type RegistrationStatus = 'idle' | 'processing_queue' | 'processing_manual';
 export type RegistrationTimeStatus = 'waiting' | 'open' | 'ended';
@@ -61,19 +61,7 @@ export const useRegistrationStore = create<RegistrationState>()(
         const filteredQueue = queue.filter(q => !subjectMap.has(q.subjectId));
         const newQueuedCourses = Array.from(subjectMap.values());
 
-        set({ queue: [...filteredQueue, ...newQueuedCourses] });
-
-        // Add log entries for queued courses
-        const logStore = useLogStore.getState();
-        newQueuedCourses.forEach(course => {
-          logStore.addLogEntry({
-            courseId: course.id,
-            courseName: course.displayName || 'Unknown Course',
-            courseCode: course.code || 'Unknown Code',
-            status: 'queued',
-            message: `Added to registration queue. Will register automatically at ${REGISTRATION_START_TIME.toLocaleString()}`,
-          });
-        });
+        set({ queue: [...filteredQueue, ...newQueuedCourses] })
       },
 
       clearQueue: () => {
@@ -103,10 +91,7 @@ export const useRegistrationStore = create<RegistrationState>()(
 
             const result = await apiService.registerForCourseFullObject(course, personId, registrationPeriodId, {
               onRetry: (retryCount) => {
-                logStore.addLogEntry({
-                  courseId: course.id,
-                  courseName: course.displayName || course.subjectName || 'Unknown course',
-                  courseCode: course.code || course.subjectCode || 'Unknown course',
+                logStore.updateLogEntry(lastLogId, {
                   status: 'retrying',
                   message: `Retrying... (Attempt ${retryCount}/${maxRetries})`,
                   retryAttempt: retryCount,

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { useSemesterStore } from '../stores/semesterStore';
 import { useRequestCleanup } from '../hooks/useRequestCleanup';
+import { useSessionHandler } from '../hooks/useSessionHandler';
 import CourseList from './CourseList';
 import RegistrationControls from './RegistrationControls';
 import LogView from './LogView';
@@ -15,6 +16,9 @@ const DashboardPage: React.FC = () => {
 
   // Clean up any ongoing requests when component unmounts (e.g., on logout)
   useRequestCleanup();
+
+  // Handle session expiration from API
+  useSessionHandler();
 
   useEffect(() => {
     // Fetch current semester info on load
