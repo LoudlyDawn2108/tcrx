@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { SemesterPeriodData, CourseSubjectDto } from '../services/api';
 import apiService from '../services/api';
 import { useRegistrationStore } from './registrationStore';
+import { useLogStore } from './logStore';
 
 interface CourseState {
   coursesData: SemesterPeriodData | null;
@@ -45,8 +46,30 @@ export const useCourseStore = create<CourseState>((set, get) => ({
     const abortController = new AbortController();
     set({ isLoading: true, error: null, abortController });
     
+    const logStore = useLogStore.getState();
+    const maxRetries = 100;
+    const logEntryId = logStore.addLogEntry({
+      courseId: 0,
+      courseCode: registrationPeriodId.toString(),
+      courseName: 'Fetching available courses...',
+      message: '',
+      status: 'pending',
+    });
+
     try {
-      const coursesData = await apiService.getAvailableCourses(registrationPeriodId, personId, abortController.signal);
+
+
+      const coursesData = await apiService.getAvailableCourses(registrationPeriodId, personId, {
+        signal: abortController.signal,
+        onRetry: (retryCount) => {
+          logStore.updateLogEntry(logEntryId, {
+            status: 'retrying',
+            message: `Retrying... (Attempt ${retryCount}/${maxRetries})`,
+            retryAttempt: retryCount,
+            maxRetries,
+          });
+        }
+      });
       
       // Only update state if this request wasn't aborted
       if (!abortController.signal.aborted) {
@@ -54,6 +77,11 @@ export const useCourseStore = create<CourseState>((set, get) => ({
           coursesData,
           isLoading: false,
           abortController: null
+        });
+
+        logStore.updateLogEntry(logEntryId, {
+          status: 'success',
+          message: 'Successfully fetched available courses!',
         });
 
         // Update registration times from API data
@@ -68,6 +96,10 @@ export const useCourseStore = create<CourseState>((set, get) => ({
       // Don't set error if request was cancelled
       if (error && typeof error === 'object' && 'name' in error && error.name === 'CanceledError') {
         console.log('Request was cancelled');
+        logStore.updateLogEntry(logEntryId, {
+          status: 'failed',
+          message: 'Request was canceled',
+        });
         return;
       }
       

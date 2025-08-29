@@ -578,7 +578,11 @@ class ApiService {
   }
 
   // Course management methods
-  async getAvailableCourses(registrationPeriodId: number, personId: number, signal?: AbortSignal): Promise<SemesterPeriodData> {
+  async getAvailableCourses(
+    registrationPeriodId: number, 
+    personId: number, 
+    config?: AxiosRequestConfig & { onRetry?: (retryCount: number, error: AxiosError) => void }
+  ): Promise<SemesterPeriodData> {
     if (USE_MOCK_DATA) {
       // Simulate some network delay
       return await mockApiCall(mockCourses);
@@ -586,7 +590,7 @@ class ApiService {
 
     try {
       console.log(`Fetching courses for registration period ID: ${registrationPeriodId}`);
-      const response = await this.axiosInstance.get<SemesterPeriodData>(`/api/cs_reg_mongo/findByPeriod/${personId}/${registrationPeriodId}`, { signal });
+      const response = await this.axiosInstance.get<SemesterPeriodData>(`/api/cs_reg_mongo/findByPeriod/${personId}/${registrationPeriodId}`, config);
 
       console.log(`Received ${response.data.courseRegisterViewObject?.listSubjectRegistrationDtos?.length || 0} courses from API`);
 

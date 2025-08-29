@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '../services/api';
 import apiService from '../services/api';
+import { useRegistrationStore } from './registrationStore';
+import { useLogStore } from './logStore';
 
 interface AuthState {
   user: User | null;
@@ -51,6 +53,10 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        const logStore = useLogStore.getState();
+        logStore.clearLogs();
+        const registerStore = useRegistrationStore.getState();
+        registerStore.clearQueue();
         apiService.logout();
         set({ 
           user: null, 

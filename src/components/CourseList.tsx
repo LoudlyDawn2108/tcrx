@@ -313,7 +313,7 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
                                             <strong>Week:</strong> {timetable.fromWeek} → {timetable.toWeek} <br/> ({timetable.startDate ? new Date(timetable.startDate).toLocaleDateString() : 'N/A'} - {timetable.endDate ? new Date(timetable.endDate).toLocaleDateString() : 'N/A'})
                                           </span>
                                           <span>
-                                            <strong>Time:</strong> {timetable.start} → {timetable.end} <br/> {timetable.startHour?.startString} → {timetable.endHour?.endString}
+                                            <strong>Thứ: {timetable.weekIndex}</strong> {timetable.start} → {timetable.end} <br/> {timetable.startHour?.startString} → {timetable.endHour?.endString}
                                           </span>
                                           <span>
                                             <strong>Room:</strong> {timetable.room?.code || 'TBA'}

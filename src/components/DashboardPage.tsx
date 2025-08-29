@@ -127,7 +127,7 @@ const DashboardPage: React.FC = () => {
                         <option value="">Select a period...</option>
                         {currentSemester.semesterRegisterPeriods.map((period) => (
                           <option key={period.id} value={period.id}>
-                            {period.name} (Order: {period.displayOrder})
+                            {period.name} ({period.id})
                           </option>
                         ))}
                       </select>
