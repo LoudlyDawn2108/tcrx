@@ -57,8 +57,6 @@ export const useCourseStore = create<CourseState>((set, get) => ({
     });
 
     try {
-
-
       const coursesData = await apiService.getAvailableCourses(registrationPeriodId, personId, {
         signal: abortController.signal,
         onRetry: (retryCount) => {
@@ -81,6 +79,7 @@ export const useCourseStore = create<CourseState>((set, get) => ({
 
         logStore.updateLogEntry(logEntryId, {
           status: 'success',
+          courseName: `Fetched ${coursesData.courseRegisterViewObject?.listSubjectRegistrationDtos?.length || 0} subjects`,
           message: 'Successfully fetched available courses!',
         });
 
@@ -95,9 +94,10 @@ export const useCourseStore = create<CourseState>((set, get) => ({
     } catch (error) {
       // Don't set error if request was cancelled
       if (error && typeof error === 'object' && 'name' in error && error.name === 'CanceledError') {
-        console.log('Request was cancelled');
+        console.log('Course request was cancelled');
         logStore.updateLogEntry(logEntryId, {
           status: 'failed',
+          courseName: 'Course fetch cancelled',
           message: 'Request was canceled',
         });
         return;
@@ -107,6 +107,12 @@ export const useCourseStore = create<CourseState>((set, get) => ({
       
       // Only update state if this request wasn't aborted
       if (!abortController.signal.aborted) {
+        logStore.updateLogEntry(logEntryId, {
+          status: 'failed',
+          courseName: 'Course fetch failed',
+          message: errorMessage,
+        });
+
         set({ 
           error: errorMessage,
           isLoading: false,

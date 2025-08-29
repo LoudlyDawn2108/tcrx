@@ -2,12 +2,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, { AxiosError } from 'axios';
 import type { AxiosInstance, AxiosRequestConfig } from 'axios';
-import { 
-  mockLoginResponse, 
-  mockUser, 
-  mockCourses, 
-  mockApiCall 
-} from './mockData';
 
 // Types for API responses
 export interface LoginResponse {
@@ -324,7 +318,6 @@ export interface SemesterInfo {
 
 // Base API configuration
 const BASE_URL = 'https://sinhvien1.tlu.edu.vn/education';
-const USE_MOCK_DATA = false; // Set to false to use real API (course listing now integrated)
 
 class ApiService {
   
@@ -447,19 +440,7 @@ class ApiService {
 
   // Authentication methods
   async login(username: string, password: string): Promise<LoginResponse> {
-    // For development, use mock data
-    if (USE_MOCK_DATA) {
-      if (username === 'demo' && password === 'demo') {
-        const response = await mockApiCall(mockLoginResponse);
-        localStorage.setItem('access_token', response.access_token);
-        localStorage.setItem('refresh_token', response.refresh_token);
-        return response;
-      } else {
-        throw new Error('Invalid credentials. Use demo/demo for testing.');
-      }
-    }
 
-    // Real API call
     try {
       // Create form data as the API expects application/x-www-form-urlencoded
       const formData = new URLSearchParams();
@@ -489,10 +470,6 @@ class ApiService {
   }
 
   async getCurrentUser(signal?: AbortSignal): Promise<User> {
-    if (USE_MOCK_DATA) {
-      return await mockApiCall(mockUser);
-    }
-
     const response = await this.axiosInstance.get('/api/users/getCurrentUser', { signal });
     return response.data;
   }
@@ -503,76 +480,6 @@ class ApiService {
   }
 
   async getCurrentSemesterInfo(signal?: AbortSignal): Promise<SemesterInfo> {
-    if (USE_MOCK_DATA) {
-      // Return mock semester info for development
-      const mockSemesterInfo: SemesterInfo = {
-        id: 13,
-        semesterCode: "1_2025_2026",
-        semesterName: "1_2025_2026",
-        description: null,
-        schoolYear: {
-          id: 7,
-          name: "2025-2026",
-          code: "2025-2026",
-          year: 2025,
-          current: true,
-          startDate: 1756659600000,
-          endDate: 1788022800000,
-          children: null,
-          displayName: "2025-2026",
-          semesterId: null,
-          isSemester: 0,
-          semesters: null
-        },
-        year: null,
-        startDate: 1756659600000,
-        endDate: 1768669200000,
-        isCurrent: true,
-        parent: null,
-        children: [],
-        subSemesters: null,
-        tuitionFeePerCredit: null,
-        startRegisterDate: null,
-        startRegisterDateString: null,
-        endRegisterDate: null,
-        endRegisterDateString: null,
-        isLockRegister: null,
-        ordinalNumbers: 13,
-        behaviorMarkStart: null,
-        behaviorMarkEnd: null,
-        semesterRegisterPeriods: [
-          {
-            createDate: null,
-            createdBy: null,
-            modifyDate: null,
-            modifiedBy: null,
-            id: 65,
-            voided: false,
-            semester: {},
-            name: "Học kỳ chính",
-            displayOrder: 1,
-            startRegisterTime: null,
-            endRegisterTime: null,
-            endUnRegisterTime: null,
-            startRegisterTimeString: null,
-            endRegisterTimeString: null,
-            endUnRegisterTimeString: null,
-            isLockRegister: null,
-            examPeriods: []
-          }
-        ],
-        examRegisterPeriods: null,
-        typeMarkRecognition: 1,
-        educationStart: null,
-        educationEnd: null,
-        studentStart: null,
-        studentEnd: null,
-        trainingBaseId: null
-      };
-      
-      return await mockApiCall(mockSemesterInfo);
-    }
-
     const response = await this.axiosInstance.get('/api/semester/semester_info', { signal });
     return response.data;
   }
@@ -583,32 +490,14 @@ class ApiService {
     personId: number, 
     config?: AxiosRequestConfig & { onRetry?: (retryCount: number, error: AxiosError) => void }
   ): Promise<SemesterPeriodData> {
-    if (USE_MOCK_DATA) {
-      // Simulate some network delay
-      return await mockApiCall(mockCourses);
-    }
+    console.log(`Fetching courses for registration period ID: ${registrationPeriodId}`);
+    const response = await this.axiosInstance.get<SemesterPeriodData>(`/api/cs_reg_mongo/findByPeriod/${personId}/${registrationPeriodId}`, config);
 
-    try {
-      console.log(`Fetching courses for registration period ID: ${registrationPeriodId}`);
-      const response = await this.axiosInstance.get<SemesterPeriodData>(`/api/cs_reg_mongo/findByPeriod/${personId}/${registrationPeriodId}`, config);
+    console.log(`Received ${response.data.courseRegisterViewObject?.listSubjectRegistrationDtos?.length || 0} courses from API`);
 
-      console.log(`Received ${response.data.courseRegisterViewObject?.listSubjectRegistrationDtos?.length || 0} courses from API`);
-
-      // Transform the API response to match our Course interface
-      const courses: SemesterPeriodData = response.data;
-      return courses;
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-      
-      // Don't fallback to mock data if request was cancelled
-      if (axios.isCancel(error)) {
-        throw error;
-      }
-      
-      // Fallback to mock data if API fails
-      console.log('Falling back to mock data due to API error');
-      return await mockApiCall(mockCourses);
-    }
+    // Transform the API response to match our Course interface
+    const courses: SemesterPeriodData = response.data;
+    return courses;
   }
 
 
@@ -636,7 +525,7 @@ class ApiService {
       }
       return {
         success: true,
-        message: 'Successfully registered for course',
+        message: result.data.message || 'Successfully registered for course',
         courseSubjectId: courseObj.id
       };
     } catch (error) {

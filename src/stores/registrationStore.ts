@@ -4,10 +4,9 @@ import type { CourseSubjectDto } from '../services/api';
 import apiService from '../services/api';
 import { useLogStore } from './logStore';
 import { useAuthStore } from './authStore';
-import { useCourseStore } from './courseStore';
 
 // Configuration - for testing purposes
-export const USE_TEST_TIMES = true; // Set to true to use test times instead of API times
+export const USE_TEST_TIMES = false; // Set to true to use test times instead of API times
 export const REGISTRATION_START_TIME = new Date(Date.now() + 1 * 80 * 1000); // Test start time
 export const REGISTRATION_END_TIME = new Date('2025-08-29T23:59:59'); // Test end time
 
