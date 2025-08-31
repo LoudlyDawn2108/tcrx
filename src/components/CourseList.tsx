@@ -249,6 +249,7 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
                   const isSelected = selectedCourses.includes(course.id);
                   const enrolled = course.isSelected;
                   const isFull = isCourseFull(course);
+                  const isOverlapping = course.isOvelapTime;
                   const isSelectable = !enrolled && !isFull && !course.isMainClass; // Main classes are not selectable
                   const isMainClass = course.isMainClass;
                   const isComponentLayer = !isMainClass && course.parentId;
@@ -344,7 +345,12 @@ const CourseList: React.FC<CourseListProps> = ({ semesterId }) => {
                                   Full
                                 </span>
                               )}
-                              {!enrolled && !isFull && !isMainClass && (
+                              {isOverlapping && !enrolled && !isMainClass && !isFull && (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                  Overlapping
+                                </span>
+                              )}
+                              {!enrolled && !isFull && !isMainClass && !isOverlapping && (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                   Available
                                 </span>

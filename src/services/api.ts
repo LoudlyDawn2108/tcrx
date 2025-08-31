@@ -513,8 +513,12 @@ class ApiService {
   ): Promise<RegistrationResponse> {
     try {
       const url = `/api/cs_reg_mongo/add-register/${personId}/${registrationPeriodId}`;
-      console.log('[API] Đăng ký:', { url, payload: courseObj });
-      const result = await this.axiosInstance.post(url, courseObj, config);
+      const payload = {
+        id: courseObj.id,
+        subjectId: courseObj.subjectId
+      }
+      console.log('[API] Đăng ký:', { url, payload });
+      const result = await this.axiosInstance.post(url, payload, config);
       if (result.data.status != 0) {
         console.error('[API] Đăng ký thất bại:', { url, payload: courseObj, response: result.data });
         return {
