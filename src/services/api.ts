@@ -322,7 +322,8 @@ const BASE_URL = 'https://sinhvien1.tlu.edu.vn/education';
 class ApiService {
   
   private axiosInstance: AxiosInstance;
-  private retryCount = 100;
+  private retryCount = 100000;
+
   private sessionExpiredCallback?: () => void;
 
   constructor() {

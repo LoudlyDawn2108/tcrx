@@ -8,7 +8,7 @@ import { useAuthStore } from './authStore';
 // Configuration - for testing purposes
 export const USE_TEST_TIMES = false; // Set to true to use test times instead of API times
 export const REGISTRATION_START_TIME = new Date(Date.now() + 1 * 80 * 1000); // Test start time
-export const REGISTRATION_END_TIME = new Date('2025-08-29T23:59:59'); // Test end time
+export const REGISTRATION_END_TIME = new Date('2025-12-29T23:59:59'); // Test end time
 
 export type RegistrationStatus = 'idle' | 'processing_queue' | 'processing_manual';
 export type RegistrationTimeStatus = 'waiting' | 'open' | 'ended';
